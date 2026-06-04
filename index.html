@@ -570,7 +570,7 @@ const DEFAULTS = {
   opMin:0.3, opMax:1.0,
   skewX:0, skewY:0, invert:false,
   noiseAmt:0, noiseFreq:1, noiseRot:0, seed:42,
-  distMode:'random', preserveAspect:true,
+  distMode:'threshold', preserveAspect:true,
   colorMode:'original', colorTarget:'fill', strokeW:0,
   blendMode:'normal',
   bgColor:'#080808', flatColor:'#3034a4',
@@ -763,12 +763,12 @@ function parseSVGCode(code){
   return new DOMParser().parseFromString(code.trim(),'image/svg+xml').querySelector('svg');
 }
 
-function addBankSlot(code,nameHint,skipRender){
+function addBankSlot(code,nameHint,skipRender,lumMin=0,lumMax=255){
   const svgEl=parseSVGCode(code);
   if(!svgEl){ toast('SVG inválido'); return; }
   const id='mod_'+(bankIdCounter++);
   const slot={id, name:nameHint||('Módulo '+bankIdCounter), code, svgEl,
-               lumMin:0, lumMax:255,
+               lumMin, lumMax,
                /* per-slot color override */
                useCustomColor:false, customColor:'#3034a4'};
   bank.push(slot);
@@ -1338,15 +1338,34 @@ function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); cle
 /* ════════════════════════════════════════════════
    BUILT-IN SVG MODULES
 ════════════════════════════════════════════════ */
+/* Nuevos módulos ordenados de más claro (poca área) a más oscuro (mucha área).
+   Zonas lumínicas divididas en 5 bandas de 51 pts c/u sobre el rango 0-255:
+   Zona 1 (luces altas)  : 205-255
+   Zona 2 (luces medias) : 154-204
+   Zona 3 (mediotonos)   : 103-153
+   Zona 4 (sombras medias):  52-102
+   Zona 5 (sombras altas):    0-51  */
 const BUILT_IN_SVGS=[
-  { name:'Criptido A', code:`<svg width="140" height="220" viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="220" fill="#3034A4"/><rect x="80" width="60" height="100" fill="#3034A4"/><rect x="80" y="120" width="60" height="100" fill="#3034A4"/></svg>` },
-  { name:'Criptido B', code:`<svg width="140" height="220" viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="220" fill="#3034A4"/><rect x="80" width="60" height="40" fill="#3034A4"/></svg>` },
-  { name:'Criptido C', code:`<svg width="60" height="220" viewBox="0 0 60 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="60" width="60" height="160" fill="#3034A4"/><rect width="60" height="40" fill="#3034A4"/></svg>` },
-  { name:'Criptido D', code:`<svg width="140" height="220" viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="220" fill="#3034A4"/><rect x="80" width="60" height="160" fill="#3034A4"/></svg>` },
-  { name:'Criptido E', code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="80" width="60" height="220" fill="#3034A4"/><rect width="60" height="100" fill="#3034A4"/><rect x="160" width="60" height="100" fill="#3034A4"/></svg>` },
-  { name:'Criptido F', code:`<svg width="140" height="220" viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="80" width="60" height="220" fill="#3034A4"/><rect y="60" width="60" height="160" fill="#3034A4"/></svg>` },
-  { name:'Criptido G', code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="220" fill="#3034A4"/><rect x="80" width="60" height="100" fill="#3034A4"/><rect x="80" y="120" width="60" height="100" fill="#3034A4"/><rect x="160" width="60" height="220" fill="#3034A4"/></svg>` },
-  { name:'Criptido H', code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="120" width="60" height="100" fill="#3034A4"/><rect x="160" width="60" height="100" fill="#3034A4"/><rect x="80" width="60" height="220" fill="#3034A4"/></svg>` },
+  {
+    name:'Lum 1 · Luces altas', lumMin:205, lumMax:255,
+    code:`<svg width="221" height="220" viewBox="0 0 221 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="80" y="120" width="61" height="100" fill="#4454A4"/><rect x="160" y="60" width="61" height="100" fill="#4454A4"/><rect width="60" height="40" fill="#4454A4"/></svg>`
+  },
+  {
+    name:'Lum 2 · Luces medias', lumMin:154, lumMax:204,
+    code:`<svg width="221" height="220" viewBox="0 0 221 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="60" width="60" height="160" fill="#4454A4"/><rect x="80" y="180" width="60" height="40" fill="#4454A4"/><rect x="160" width="61" height="100" fill="#4454A4"/><rect x="80" width="60" height="40" fill="#4454A4"/></svg>`
+  },
+  {
+    name:'Lum 3 · Mediotonos', lumMin:103, lumMax:153,
+    code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="80" width="60" height="100" fill="#4454A4"/><rect x="80" y="120" width="60" height="100" fill="#4454A4"/><rect width="60" height="40" fill="#4454A4"/><rect x="160" y="60" width="60" height="160" fill="#4454A4"/></svg>`
+  },
+  {
+    name:'Lum 4 · Sombras medias', lumMin:52, lumMax:102,
+    code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="80" y="120" width="60" height="100" fill="#4454A4"/><rect x="160" y="60" width="60" height="160" fill="#4454A4"/><rect y="60" width="60" height="160" fill="#4454A4"/><rect x="160" width="60" height="40" fill="#4454A4"/><rect x="79" width="60" height="40" fill="#4454A4"/></svg>`
+  },
+  {
+    name:'Lum 5 · Sombras altas', lumMin:0, lumMax:51,
+    code:`<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="220" fill="#4454A4"/><rect x="160" width="60" height="220" fill="#4454A4"/><rect x="80" width="60" height="160" fill="#4454A4"/><rect x="80" y="180" width="60" height="40" fill="#4454A4"/></svg>`
+  },
 ];
 
 /* ════════════════════════════════════════════════
@@ -1356,8 +1375,10 @@ buildPresets();
 renderGradStops();
 updateColorUI();
 updateFilterPreview();
+/* Sync todos los controles UI con el estado inicial (distMode: threshold, etc.) */
+syncUI();
 
-BUILT_IN_SVGS.forEach(m=>addBankSlot(m.code,m.name,true));
+BUILT_IN_SVGS.forEach(m=>addBankSlot(m.code,m.name,true,m.lumMin,m.lumMax));
 
 mainSvg.setAttribute('width',800); mainSvg.setAttribute('height',600);
 mainSvg.setAttribute('viewBox','0 0 800 600');

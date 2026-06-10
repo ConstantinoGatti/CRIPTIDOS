@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRÍPTIDOS</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blanco: #F3F3F3;
+      --azul: #4454A4;
+      --negro: #1C1E21;
+      --amarillo: #FB9B10;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--negro);
+      color: var(--blanco);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* scanlines */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom, transparent 0px, transparent 3px,
+        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none; z-index: 9000;
+    }
+
+    /* ── BOOT SCREEN ──────────────────────────────────────── */
+    #screen {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+
+    #boot { width: 100%; max-width: 640px; display: flex; flex-direction: column; }
+
+    .boot-line {
+      font-size: clamp(10px, 1.4vw, 13px);
+      font-weight: 400; line-height: 1.8;
+      color: var(--blanco); opacity: 0;
+      white-space: nowrap; overflow: hidden;
+    }
+    .boot-line.dim   { color: rgba(243,243,243,0.35); }
+    .boot-line.accent{ color: var(--amarillo); }
+    .boot-line.ok::after { content: ' OK'; color: var(--azul); }
+    .boot-line.visible { opacity: 1; }
+
+    #progress-wrap { margin-top: 4px; opacity: 0; transition: opacity 0.1s; }
+    #progress-wrap.visible { opacity: 1; }
+    #progress-label { font-size: clamp(10px,1.4vw,13px); color: rgba(243,243,243,0.35); margin-bottom: 4px; }
+    #progress-bar-outer {
+      width: 100%; max-width: 640px; height: 14px;
+      border: 1px solid rgba(243,243,243,0.2); overflow: hidden;
+    }
+    #progress-bar-inner {
+      height: 100%; width: 0%; background: var(--azul);
+      transition: width 0.05s linear; position: relative;
+    }
+    #progress-bar-inner::after {
+      content: ''; position: absolute; right: 0; top: 0; width: 8px; height: 100%;
+      background: repeating-linear-gradient(
+        to bottom, var(--azul) 0px, var(--azul) 2px, transparent 2px, transparent 4px
+      );
+    }
+    #progress-pct { font-size: clamp(10px,1.4vw,13px); color: var(--blanco); margin-top: 4px; text-align: right; }
+
+    #logo-wrap { opacity: 0; margin-bottom: 3rem; transition: opacity 0.4s ease; }
+    #logo-wrap.visible { opacity: 1; }
+    #logo-wrap svg rect { fill: transparent; transition: fill 0.06s ease; }
+    #logo-wrap svg rect.lit { fill: var(--azul); }
+
+    /* ── PASSWORD GATE ────────────────────────────────────── */
+    #password-gate { display: none; flex-direction: column; align-items: center; gap: 0; width: 100%; max-width: 640px; }
+    #password-gate.active { display: flex; }
+    .gate-rule { width: 100%; border: none; border-top: 1px solid rgba(243,243,243,0.15); margin: 1.6rem 0; }
+    #gate-label { font-size: clamp(10px,1.4vw,13px); color: rgba(243,243,243,0.4); letter-spacing: 0.12em; text-transform: uppercase; align-self: flex-start; margin-bottom: 1.2rem; }
+    #gate-prompt-wrap { display: flex; align-items: center; gap: 0.5rem; align-self: flex-start; }
+    #gate-prompt-label { font-size: clamp(11px,1.5vw,14px); color: var(--blanco); letter-spacing: 0.05em; }
+    #gate-input {
+      background: transparent; border: none; border-bottom: 1px solid var(--blanco);
+      outline: none; color: var(--blanco); font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(11px,1.5vw,14px); letter-spacing: 0.3em;
+      width: 180px; padding: 2px 4px; caret-color: var(--azul);
+    }
+    #gate-cursor { width: 9px; height: 14px; background: var(--blanco); animation: blink 1s step-end infinite; flex-shrink: 0; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    #gate-error { align-self: flex-start; font-size: clamp(10px,1.3vw,12px); color: var(--amarillo); margin-top: 1rem; letter-spacing: 0.05em; opacity: 0; transition: opacity 0.2s; }
+    #gate-error.visible { opacity: 1; }
+    #gate-hint { align-self: flex-start; font-size: clamp(9px,1.1vw,11px); color: rgba(243,243,243,0.2); margin-top: 2.4rem; letter-spacing: 0.08em; }
+
+    /* ── DESKTOP ──────────────────────────────────────────── */
+    #desktop {
+      display: none; width: 100%; height: 100%;
+      flex-direction: column; opacity: 0;
+      transition: opacity 0.8s ease;
+      position: relative; overflow: hidden;
+    }
+    #desktop.active  { display: flex; }
+    #desktop.visible { opacity: 1; }
+
+    /* top menu bar */
+    #menubar {
+      width: 100%; height: 52px; flex-shrink: 0;
+      background: var(--azul);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      z-index: 100;
+    }
+    #menubar-left {
+      display: flex; align-items: center; gap: 36px;
+    }
+    .menubar-logo { display: flex; align-items: center; }
+    .menubar-logo svg { width: 168px; height: auto; }
+    .menubar-logo svg rect { fill: var(--blanco); }
+    .menubar-item {
+      font-size: 11px; color: rgba(243,243,243,0.7);
+      letter-spacing: 0.1em; cursor: default;
+    }
+    #menubar-clock { font-size: 11px; color: rgba(243,243,243,0.5); letter-spacing: 0.08em; }
+
+    /* desktop canvas */
+    #desktop-canvas {
+      flex: 1; position: relative; overflow: hidden;
+      /* subtle dither pattern bg */
+      background-color: var(--negro);
+      background-image:
+        radial-gradient(circle, rgba(68,84,164,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* folder icons */
+    #desktop-icons {
+      position: absolute;
+      top: 40px; left: 48px;
+      display: flex; flex-direction: column; gap: 40px;
+    }
+
+    .folder-icon {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 10px;
+      cursor: pointer; width: 72px;
+    }
+    .folder-icon .icon-svg {
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      transition: filter 0.12s;
+    }
+    .folder-icon .icon-svg svg { width: 44px; height: 44px; }
+    .folder-icon .icon-svg svg rect { fill: var(--azul); }
+    .folder-icon .icon-label {
+      font-size: 9px; letter-spacing: 0.12em;
+      color: var(--blanco); text-align: center;
+      text-transform: uppercase; line-height: 1.3;
+    }
+    .folder-icon:hover .icon-svg { filter: brightness(1.4); }
+    .folder-icon.selected .icon-svg { filter: brightness(0.6) sepia(1) hue-rotate(180deg) saturate(3); }
+    .folder-icon.selected .icon-label { background: var(--azul); color: var(--blanco); padding: 1px 4px; }
+
+    /* ── OS WINDOWS ───────────────────────────────────────── */
+    .os-window {
+      position: absolute;
+      min-width: 320px; min-height: 200px;
+      border: 1px solid rgba(243,243,243,0.25);
+      background: var(--negro);
+      display: none; flex-direction: column;
+      box-shadow: 4px 4px 0px rgba(0,0,0,0.6);
+    }
+    .os-window.open { display: flex; }
+
+    .win-titlebar {
+      height: 24px; background: var(--azul);
+      display: flex; align-items: center;
+      padding: 0 6px; gap: 8px;
+      cursor: move; flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .win-close-btn {
+      width: 14px; height: 14px;
+      border: 1px solid rgba(243,243,243,0.5);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      font-size: 9px; color: var(--blanco); font-family: 'JetBrains Mono', monospace;
+      padding: 0;
+    }
+    .win-close-btn:hover { background: rgba(243,243,243,0.2); }
+    .win-title {
+      flex: 1; text-align: center;
+      font-size: 11px; letter-spacing: 0.18em;
+      color: var(--blanco); text-transform: uppercase;
+      pointer-events: none;
+    }
+    .win-spacer { width: 14px; flex-shrink: 0; }
+
+    .win-body {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 20px 24px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--azul) transparent;
+    }
+    .win-body::-webkit-scrollbar { width: 6px; }
+    .win-body::-webkit-scrollbar-thumb { background: var(--azul); }
+    .win-body::-webkit-scrollbar-track { background: transparent; }
+
+    /* window-specific sizes */
+    #win-archivo { width: min(680px, 90vw); height: min(480px, 80vh); top: 60px; left: 140px; }
+    #win-print   { width: min(480px, 85vw); height: min(420px, 75vh); top: 80px; left: 200px; }
+    #win-blocked { width: min(400px, 80vw); height: min(280px, 60vh); top: 100px; left: 160px; }
+
+    /* ── ARCHIVO content ──────────────────────────────────── */
+    .archivo-header {
+      border-bottom: 1px solid rgba(243,243,243,0.1);
+      padding-bottom: 14px; margin-bottom: 20px;
+    }
+    .archivo-meta {
+      font-size: 9px; color: rgba(243,243,243,0.3);
+      letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .archivo-title {
+      font-size: 13px; color: var(--blanco); letter-spacing: 0.05em;
+    }
+
+    .objeto-list { display: flex; flex-direction: column; gap: 0; }
+    .objeto-row {
+      display: grid; grid-template-columns: 28px 1fr;
+      gap: 14px; align-items: start;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(243,243,243,0.06);
+    }
+    .objeto-index {
+      font-size: 9px; color: var(--azul); letter-spacing: 0.1em;
+      padding-top: 2px;
+    }
+    .objeto-info {}
+    .objeto-name {
+      font-size: 11px; color: var(--blanco);
+      letter-spacing: 0.08em; margin-bottom: 5px;
+    }
+    .objeto-desc {
+      font-size: 10px; color: rgba(243,243,243,0.35);
+      line-height: 1.7; letter-spacing: 0.03em;
+    }
+    .objeto-tag {
+      display: inline-block; margin-top: 8px;
+      font-size: 8px; color: var(--azul); letter-spacing: 0.12em;
+      border: 1px solid rgba(68,84,164,0.4); padding: 1px 5px;
+    }
+
+    /* ── PRINT content ────────────────────────────────────── */
+    .print-meta {
+      font-size: 9px; color: rgba(243,243,243,0.3);
+      letter-spacing: 0.15em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .print-image-area {
+      width: 100%; aspect-ratio: 3/4; max-height: 260px;
+      border: 1px solid rgba(243,243,243,0.12);
+      background: rgba(68,84,164,0.06);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px; position: relative; overflow: hidden;
+    }
+    .print-placeholder {
+      font-size: 9px; color: rgba(243,243,243,0.15);
+      letter-spacing: 0.1em; text-align: center; line-height: 2;
+    }
+    .print-download-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: transparent; border: 1px solid rgba(243,243,243,0.25);
+      color: var(--blanco); font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.12em;
+      padding: 8px 14px; cursor: pointer;
+      text-transform: uppercase; transition: background 0.15s, border-color 0.15s;
+    }
+    .print-download-btn:hover { background: rgba(68,84,164,0.3); border-color: var(--azul); }
+    .print-download-btn .dl-arrow { font-size: 12px; color: var(--azul); }
+
+    /* ── BLOCKED content ──────────────────────────────────── */
+    .blocked-wrap {
+      display: flex; flex-direction: column;
+      align-items: flex-start; gap: 0; height: 100%;
+      justify-content: center;
+    }
+    .blocked-label {
+      font-size: 9px; color: rgba(243,243,243,0.3);
+      letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 20px;
+    }
+    .blocked-prompt-wrap {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 14px;
+    }
+    .blocked-prompt-label { font-size: 12px; color: var(--blanco); letter-spacing: 0.05em; }
+    .blocked-input {
+      background: transparent; border: none;
+      border-bottom: 1px solid rgba(243,243,243,0.4);
+      outline: none; color: var(--blanco);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; letter-spacing: 0.3em;
+      width: 140px; padding: 2px 4px; caret-color: var(--azul);
+    }
+    .blocked-cursor { width: 8px; height: 13px; background: var(--blanco); animation: blink 1s step-end infinite; }
+    .blocked-error { font-size: 9px; color: var(--amarillo); letter-spacing: 0.05em; opacity: 0; transition: opacity 0.2s; }
+    .blocked-error.visible { opacity: 1; }
+    .blocked-hint { font-size: 9px; color: rgba(243,243,243,0.15); letter-spacing: 0.08em; margin-top: 20px; }
+    .blocked-success { display: none; }
+    .blocked-success.visible { display: block; font-size: 10px; color: var(--azul); letter-spacing: 0.1em; }
+
+    /* resize handle */
+    .win-resize {
+      position: absolute; bottom: 0; right: 0;
+      width: 14px; height: 14px; cursor: se-resize;
+    }
+    .win-resize::before, .win-resize::after {
+      content: ''; position: absolute;
+      background: rgba(243,243,243,0.2);
+    }
+    .win-resize::before { bottom: 4px; right: 1px; width: 8px; height: 1px; }
+    .win-resize::after  { bottom: 1px; right: 4px; width: 1px; height: 8px; }
+
+    /* statusbar */
+    #statusbar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 20px; border-top: 1px solid rgba(243,243,243,0.07);
+      display: flex; align-items: center; padding: 0 14px;
+      justify-content: space-between;
+    }
+    #statusbar-left, #statusbar-right {
+      font-size: 9px; color: rgba(243,243,243,0.18); letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  BOOT + PASSWORD SCREEN                               -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="screen">
+
+  <div id="logo-wrap">
+    <svg width="191" height="29" viewBox="0 0 191 29" fill="none" xmlns="http://www.w3.org/2000/svg" id="logo-svg">
+      <rect x="162.987" y="15.2803" width="7.63998" height="12.7333"/>
+      <rect x="183.36"  width="7.63998" height="12.7333"/>
+      <rect x="173.174" width="7.63998" height="28.0133"/>
+      <rect x="152.8"   width="7.63998" height="28.0133"/>
+      <rect x="142.613" width="7.63998" height="12.7333"/>
+      <rect x="142.613" y="15.2803" width="7.63998" height="12.7333"/>
+      <rect x="132.427" width="7.63998" height="28.0133"/>
+      <rect x="122.24"  width="7.63998" height="28.0133"/>
+      <rect x="112.054" y="7.63965" width="7.63998" height="20.3733"/>
+      <rect x="101.867" y="7.63965" width="7.63998" height="20.3733"/>
+      <rect x="101.867" width="7.63998" height="5.09332"/>
+      <rect x="91.6807" width="7.63998" height="12.7333"/>
+      <rect x="81.4932" width="7.63998" height="28.0133"/>
+      <rect x="71.3066" width="7.63998" height="12.7333"/>
+      <rect x="61.1201" width="7.63998" height="20.3733"/>
+      <rect x="50.9336" width="7.63998" height="28.0133"/>
+      <rect x="40.7461" y="7.63965" width="7.63998" height="20.3733"/>
+      <rect x="40.7461" width="7.63998" height="5.09332"/>
+      <rect x="30.5605" width="7.63998" height="5.09332"/>
+      <rect x="20.373"  width="7.63998" height="28.0133"/>
+      <rect x="10.1875" width="7.63998" height="12.7333"/>
+      <rect x="10.1875" y="15.2803" width="7.63998" height="12.7333"/>
+      <rect x="0"       width="7.63998" height="28.0133"/>
+    </svg>
+  </div>
+
+  <div id="boot">
+    <div class="boot-line dim"    data-delay="0">CRÍPTIDOS OS  //  BUILD 2026.06</div>
+    <div class="boot-line dim"    data-delay="200">────────────────────────────────────────────────────</div>
+    <div class="boot-line"        data-delay="500">INICIANDO SISTEMA <span style="color:var(--azul)">▓▓▓▓▓▓▓▓▓▓▓▓</span></div>
+    <div class="boot-line ok"     data-delay="900">VERIFICANDO INTEGRIDAD DE ARCHIVOS</div>
+    <div class="boot-line ok"     data-delay="1300">CARGANDO MÓDULO — OBJETOS</div>
+    <div class="boot-line ok"     data-delay="1700">CARGANDO MÓDULO — CURADURIA</div>
+    <div class="boot-line ok"     data-delay="2100">CARGANDO MÓDULO — EXTRAÑEZA</div>
+    <div class="boot-line accent" data-delay="2600">! ADVERTENCIA: ZONA DE ACCESO RESTRINGIDO</div>
+    <div class="boot-line dim"    data-delay="3000">────────────────────────────────────────────────────</div>
+  </div>
+
+  <div id="progress-wrap">
+    <div id="progress-label">CARGANDO SISTEMA...</div>
+    <div id="progress-bar-outer"><div id="progress-bar-inner"></div></div>
+    <div id="progress-pct">0%</div>
+  </div>
+
+  <div id="password-gate">
+    <hr class="gate-rule">
+    <div id="gate-label">ACCESO RESTRINGIDO — INGRESE CREDENCIALES</div>
+    <div id="gate-prompt-wrap">
+      <span id="gate-prompt-label">CONTRASEÑA&nbsp;:&nbsp;</span>
+      <input type="password" id="gate-input" autocomplete="off" spellcheck="false" maxlength="8"/>
+      <div id="gate-cursor"></div>
+    </div>
+    <div id="gate-error">// ACCESO DENEGADO — CONTRASEÑA INCORRECTA</div>
+    <div id="gate-hint">[ PRESIONE ENTER PARA CONFIRMAR ]</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  DESKTOP                                              -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="desktop">
+
+  <!-- menu bar -->
+  <div id="menubar">
+    <div id="menubar-left">
+      <span class="menubar-logo">
+        <svg width="48" height="7" viewBox="0 0 191 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="162.987" y="15.2803" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="183.36"  width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="173.174" width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="152.8"   width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="142.613" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="142.613" y="15.2803" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="132.427" width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="122.24"  width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="112.054" y="7.63965" width="7.63998" height="20.3733" fill="#F3F3F3"/>
+          <rect x="101.867" y="7.63965" width="7.63998" height="20.3733" fill="#F3F3F3"/>
+          <rect x="101.867" width="7.63998" height="5.09332" fill="#F3F3F3"/>
+          <rect x="91.6807" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="81.4932" width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="71.3066" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="61.1201" width="7.63998" height="20.3733" fill="#F3F3F3"/>
+          <rect x="50.9336" width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="40.7461" y="7.63965" width="7.63998" height="20.3733" fill="#F3F3F3"/>
+          <rect x="40.7461" width="7.63998" height="5.09332" fill="#F3F3F3"/>
+          <rect x="30.5605" width="7.63998" height="5.09332" fill="#F3F3F3"/>
+          <rect x="20.373"  width="7.63998" height="28.0133" fill="#F3F3F3"/>
+          <rect x="10.1875" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="10.1875" y="15.2803" width="7.63998" height="12.7333" fill="#F3F3F3"/>
+          <rect x="0"       width="7.63998" height="28.0133" fill="#F3F3F3"/>
+        </svg>
+      </span>
+      <span class="menubar-item">ARCHIVO</span>
+      <span class="menubar-item">VISTA</span>
+      <span class="menubar-item">OPCIONES</span>
+    </div>
+    <div id="menubar-clock">--:--:--</div>
+  </div>
+
+  <!-- desktop canvas -->
+  <div id="desktop-canvas">
+
+    <!-- folder icons -->
+    <div id="desktop-icons">
+      <div class="folder-icon" data-target="win-archivo">
+        <div class="icon-svg">
+          <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 0 220)"/>
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 160 220)"/>
+            <rect width="60" height="160" transform="matrix(1 0 0 -1 80 220)"/>
+            <rect width="60" height="40"  transform="matrix(1 0 0 -1 80 40)"/>
+          </svg>
+        </div>
+        <div class="icon-label">ARCHIVO</div>
+      </div>
+
+      <div class="folder-icon" data-target="win-print">
+        <div class="icon-svg">
+          <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 0 220)"/>
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 160 220)"/>
+            <rect width="60" height="160" transform="matrix(1 0 0 -1 80 220)"/>
+            <rect width="60" height="40"  transform="matrix(1 0 0 -1 80 40)"/>
+          </svg>
+        </div>
+        <div class="icon-label">PRINT</div>
+      </div>
+
+      <div class="folder-icon" data-target="win-blocked">
+        <div class="icon-svg">
+          <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 0 220)"/>
+            <rect width="60" height="220" transform="matrix(1 0 0 -1 160 220)"/>
+            <rect width="60" height="160" transform="matrix(1 0 0 -1 80 220)"/>
+            <rect width="60" height="40"  transform="matrix(1 0 0 -1 80 40)"/>
+          </svg>
+        </div>
+        <div class="icon-label">BLOCKED</div>
+      </div>
+    </div>
+
+    <!-- statusbar -->
+    <div id="statusbar">
+      <span id="statusbar-left">CRÍPTIDOS OS  //  BUILD 2026.06</span>
+      <span id="statusbar-right">SESIÓN ACTIVA — NIVEL 1</span>
+    </div>
+
+    <!-- ── WINDOW: ARCHIVO ──────────────────────────────── -->
+    <div class="os-window" id="win-archivo">
+      <div class="win-titlebar">
+        <button class="win-close-btn" data-close="win-archivo">×</button>
+        <span class="win-title">ARCHIVO — OBJETOS</span>
+        <div class="win-spacer"></div>
+      </div>
+      <div class="win-body">
+        <div class="archivo-header">
+          <div class="archivo-meta">MUESTRA DE DISEÑO ARGENTINO — 2025 — CURADURIA EN PROCESO</div>
+          <div class="archivo-title">Objetos en el límite de lo reconocible</div>
+        </div>
+        <div class="objeto-list">
+          <div class="objeto-row">
+            <div class="objeto-index">001</div>
+            <div class="objeto-info">
+              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
+              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
+              <div class="objeto-tag">EN CURADURÍA</div>
+            </div>
+          </div>
+          <div class="objeto-row">
+            <div class="objeto-index">002</div>
+            <div class="objeto-info">
+              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
+              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
+              <div class="objeto-tag">EN CURADURÍA</div>
+            </div>
+          </div>
+          <div class="objeto-row">
+            <div class="objeto-index">003</div>
+            <div class="objeto-info">
+              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
+              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
+              <div class="objeto-tag">EN CURADURÍA</div>
+            </div>
+          </div>
+          <div class="objeto-row">
+            <div class="objeto-index">004</div>
+            <div class="objeto-info">
+              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
+              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
+              <div class="objeto-tag">EN CURADURÍA</div>
+            </div>
+          </div>
+          <div class="objeto-row">
+            <div class="objeto-index">005</div>
+            <div class="objeto-info">
+              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
+              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
+              <div class="objeto-tag">EN CURADURÍA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="win-resize"></div>
+    </div>
+
+    <!-- ── WINDOW: PRINT ────────────────────────────────── -->
+    <div class="os-window" id="win-print">
+      <div class="win-titlebar">
+        <button class="win-close-btn" data-close="win-print">×</button>
+        <span class="win-title">PRINT</span>
+        <div class="win-spacer"></div>
+      </div>
+      <div class="win-body">
+        <div class="print-meta">ARCHIVO IMPRIMIBLE — IMAGEN POR CONFIRMAR</div>
+        <div class="print-image-area" id="print-image-area">
+          <div class="print-placeholder">
+            IMAGEN<br>POR CONFIRMAR<br>—<br>[ PENDIENTE ]
+          </div>
+        </div>
+        <button class="print-download-btn" id="print-dl-btn" onclick="downloadPrint()">
+          <span class="dl-arrow">↓</span>
+          DESCARGAR ARCHIVO
+        </button>
+      </div>
+      <div class="win-resize"></div>
+    </div>
+
+    <!-- ── WINDOW: BLOCKED ──────────────────────────────── -->
+    <div class="os-window" id="win-blocked">
+      <div class="win-titlebar">
+        <button class="win-close-btn" data-close="win-blocked">×</button>
+        <span class="win-title">BLOCKED</span>
+        <div class="win-spacer"></div>
+      </div>
+      <div class="win-body">
+        <div class="blocked-wrap">
+          <div class="blocked-label">ACCESO NIVEL 2 — MÓDULO RESTRINGIDO</div>
+          <div class="blocked-prompt-wrap">
+            <span class="blocked-prompt-label">CÓDIGO&nbsp;:&nbsp;</span>
+            <input type="password" class="blocked-input" id="blocked-input" autocomplete="off" maxlength="8"/>
+            <div class="blocked-cursor"></div>
+          </div>
+          <div class="blocked-error" id="blocked-error">// CÓDIGO INCORRECTO</div>
+          <div class="blocked-hint">[ PRESIONE ENTER PARA CONFIRMAR ]</div>
+          <div class="blocked-success" id="blocked-success">// ACCESO CONCEDIDO — CARGANDO MÓDULO...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /desktop-canvas -->
+</div><!-- /desktop -->
+
+<script>
+  const PASSWORD         = 'P1N8K82S';
+  const BLOCKED_PASSWORD = 'XXXXXXXX'; // placeholder — set when ready
+
+  /* ── AUDIO ENGINE ─────────────────────────────────────── */
+  let audioCtx = null;
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  /* filtered noise burst */
+  function noise({ dur = 0.05, vol = 0.15, freq = 200, q = 0.8, type = 'bandpass', delay = 0 } = {}) {
+    const ctx = getCtx();
+    const t = ctx.currentTime + delay;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * (dur + 0.05)), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = type; flt.frequency.value = freq; flt.Q.value = q;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+    src.start(t); src.stop(t + dur + 0.06);
+  }
+
+  /* sine/saw/square tone */
+  function tone({ freq = 60, type = 'sine', dur = 0.2, vol = 0.12, delay = 0, attack = 0.005 } = {}) {
+    const ctx = getCtx();
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(vol, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  }
+
+  /* dry solenoid click — boot line */
+  function sndBootLine() {
+    noise({ dur: 0.018, vol: 0.18, freq: 120 + Math.random() * 80, q: 0.4, type: 'bandpass' });
+  }
+
+  /* subtle relay tick — logo rect */
+  function sndLogoTick() {
+    noise({ dur: 0.010, vol: 0.22, freq: 180, q: 0.3 });
+    tone({ freq: 55 + Math.random() * 20, type: 'sine', dur: 0.02, vol: 0.06 });
+  }
+
+  /* hard terminal keystroke */
+  function sndKeyClick() {
+    noise({ dur: 0.014, vol: 0.28, freq: 800, q: 0.5, type: 'highpass' });
+    tone({ freq: 70, type: 'sine', dur: 0.03, vol: 0.09 });
+  }
+
+  /* heavy thud — window open */
+  function sndWinOpen() {
+    tone({ freq: 48, type: 'sine', dur: 0.22, vol: 0.18 });
+    noise({ dur: 0.05, vol: 0.12, freq: 180, q: 0.6 });
+    tone({ freq: 72, type: 'sine', dur: 0.14, vol: 0.07, delay: 0.04 });
+  }
+
+  /* dry click — window close */
+  function sndWinClose() {
+    noise({ dur: 0.022, vol: 0.2, freq: 300, q: 0.4 });
+    tone({ freq: 50, type: 'sine', dur: 0.08, vol: 0.1 });
+  }
+
+  /* harsh dissonant buzz — error */
+  function sndError() {
+    tone({ freq: 88,  type: 'sawtooth', dur: 0.28, vol: 0.16 });
+    tone({ freq: 94,  type: 'sawtooth', dur: 0.28, vol: 0.10 }); /* beating */
+    noise({ dur: 0.15, vol: 0.12, freq: 90, q: 0.3, delay: 0.06 });
+  }
+
+  /* low cold confirmation — success */
+  function sndSuccess() {
+    tone({ freq: 98,  type: 'sine', dur: 0.5,  vol: 0.14 });
+    tone({ freq: 116, type: 'sine', dur: 0.4,  vol: 0.08, delay: 0.12 }); /* minor 3rd — unresolved */
+    noise({ dur: 0.04, vol: 0.08, freq: 200, q: 0.5, delay: 0.08 });
+  }
+
+  /* dark boot drone */
+  function sndDesktopBoot() {
+    const ctx = getCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'lowpass'; flt.frequency.value = 300;
+    osc.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(36, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(55, ctx.currentTime + 0.9);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.1);
+    osc.start(); osc.stop(ctx.currentTime + 1.2);
+    noise({ dur: 0.08, vol: 0.1, freq: 150, q: 0.5, delay: 0.3 });
+  }
+
+  /* unlock audio on first interaction */
+  document.addEventListener('click', () => getCtx(), { once: true });
+  document.addEventListener('keydown', () => getCtx(), { once: true });
+
+  /* ── BOOT ─────────────────────────────────────────────── */
+  let maxDelay = 0;
+  document.querySelectorAll('.boot-line').forEach(line => {
+    const d = parseInt(line.dataset.delay || 0);
+    if (d > maxDelay) maxDelay = d;
+    setTimeout(() => { line.classList.add('visible'); sndBootLine(); }, d);
+  });
+
+  setTimeout(() => {
+    document.getElementById('progress-wrap').classList.add('visible');
+    animateProgress();
+  }, maxDelay + 300);
+
+  function animateProgress() {
+    let pct = 0;
+    const timer = setInterval(() => {
+      pct = Math.min(100, pct + 1.8 + Math.random() * 1.2);
+      if (pct >= 100) { pct = 100; clearInterval(timer); onProgressComplete(); }
+      document.getElementById('progress-bar-inner').style.width = pct + '%';
+      document.getElementById('progress-pct').textContent = Math.floor(pct) + '%';
+    }, 40);
+  }
+
+  function onProgressComplete() {
+    setTimeout(() => {
+      document.getElementById('boot').style.display = 'none';
+      document.getElementById('progress-wrap').style.display = 'none';
+      document.getElementById('logo-wrap').classList.add('visible');
+      animateLogo();
+    }, 400);
+  }
+
+  /* ── LOGO ANIMATION ───────────────────────────────────── */
+  function animateLogo() {
+    const rects = Array.from(document.querySelectorAll('#logo-svg rect'))
+      .sort((a,b) => parseFloat(a.getAttribute('x')||0) - parseFloat(b.getAttribute('x')||0));
+    rects.forEach((r, i) => {
+      setTimeout(() => {
+        r.classList.add('lit');
+        sndLogoTick();
+        if (i === rects.length - 1) setTimeout(showPasswordGate, 500);
+      }, i * 55);
+    });
+  }
+
+  /* ── PASSWORD GATE ────────────────────────────────────── */
+  function showPasswordGate() {
+    const g = document.getElementById('password-gate');
+    g.classList.add('active');
+    setTimeout(() => document.getElementById('gate-input').focus(), 100);
+  }
+
+  document.getElementById('gate-input').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') { sndKeyClick(); return; }
+    const val = document.getElementById('gate-input').value;
+    if (val === PASSWORD) {
+      document.getElementById('gate-error').classList.remove('visible');
+      sndSuccess();
+      enterDesktop();
+    } else {
+      document.getElementById('gate-input').value = '';
+      document.getElementById('gate-error').classList.add('visible');
+      document.getElementById('gate-input').classList.add('shake');
+      sndError();
+      setTimeout(() => document.getElementById('gate-input').classList.remove('shake'), 400);
+    }
+  });
+
+  /* ── ENTER DESKTOP ────────────────────────────────────── */
+  function enterDesktop() {
+    const screen  = document.getElementById('screen');
+    const desktop = document.getElementById('desktop');
+    screen.style.transition = 'opacity 0.5s ease';
+    screen.style.opacity = '0';
+    setTimeout(() => {
+      screen.style.display = 'none';
+      desktop.classList.add('active');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        desktop.classList.add('visible');
+        sndDesktopBoot();
+      }));
+    }, 500);
+  }
+
+  /* ── CLOCK ────────────────────────────────────────────── */
+  function updateClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('menubar-clock').textContent =
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* ── FOLDER ICONS — open windows ─────────────────────── */
+  let zTop = 200;
+
+  document.querySelectorAll('.folder-icon').forEach(icon => {
+    icon.addEventListener('click', () => {
+      const winId = icon.dataset.target;
+      const win = document.getElementById(winId);
+      if (!win) return;
+
+      document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
+      icon.classList.add('selected');
+
+      if (win.classList.contains('open')) {
+        bringToFront(win);
+        sndKeyClick();
+      } else {
+        win.classList.add('open');
+        bringToFront(win);
+        sndWinOpen();
+        if (winId === 'win-blocked') {
+          setTimeout(() => document.getElementById('blocked-input').focus(), 80);
+        }
+      }
+    });
+  });
+
+  function bringToFront(win) {
+    zTop++;
+    win.style.zIndex = zTop;
+  }
+
+  /* ── CLOSE BUTTONS ────────────────────────────────────── */
+  document.querySelectorAll('.win-close-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const win = document.getElementById(btn.dataset.close);
+      if (win) win.classList.remove('open');
+      sndWinClose();
+      document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
+    });
+  });
+
+  /* ── DRAG WINDOWS ─────────────────────────────────────── */
+  document.querySelectorAll('.win-titlebar').forEach(bar => {
+    let dragging = false, ox = 0, oy = 0;
+    const win = bar.closest('.os-window');
+
+    bar.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('win-close-btn')) return;
+      dragging = true;
+      bringToFront(win);
+      const rect = win.getBoundingClientRect();
+      ox = e.clientX - rect.left;
+      oy = e.clientY - rect.top;
+      win.style.transition = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const canvas = document.getElementById('desktop-canvas').getBoundingClientRect();
+      let nx = e.clientX - canvas.left - ox;
+      let ny = e.clientY - canvas.top - oy;
+      nx = Math.max(0, Math.min(nx, canvas.width - win.offsetWidth));
+      ny = Math.max(0, Math.min(ny, canvas.height - win.offsetHeight));
+      win.style.left = nx + 'px';
+      win.style.top  = ny + 'px';
+    });
+
+    document.addEventListener('mouseup', () => { dragging = false; });
+  });
+
+  /* ── RESIZE WINDOWS ───────────────────────────────────── */
+  document.querySelectorAll('.win-resize').forEach(handle => {
+    let resizing = false, sx = 0, sy = 0, sw = 0, sh = 0;
+    const win = handle.closest('.os-window');
+
+    handle.addEventListener('mousedown', e => {
+      resizing = true;
+      sx = e.clientX; sy = e.clientY;
+      sw = win.offsetWidth; sh = win.offsetHeight;
+      e.preventDefault(); e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!resizing) return;
+      win.style.width  = Math.max(260, sw + e.clientX - sx) + 'px';
+      win.style.height = Math.max(180, sh + e.clientY - sy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => { resizing = false; });
+  });
+
+  /* ── BLOCKED PASSWORD ─────────────────────────────────── */
+  document.getElementById('blocked-input').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') { sndKeyClick(); return; }
+    const val = document.getElementById('blocked-input').value;
+    const err = document.getElementById('blocked-error');
+    const ok  = document.getElementById('blocked-success');
+    if (val === BLOCKED_PASSWORD) {
+      err.classList.remove('visible');
+      ok.classList.add('visible');
+      document.getElementById('blocked-input').disabled = true;
+      sndSuccess();
+    } else {
+      document.getElementById('blocked-input').value = '';
+      err.classList.add('visible');
+      document.getElementById('blocked-input').classList.add('shake');
+      sndError();
+      setTimeout(() => document.getElementById('blocked-input').classList.remove('shake'), 400);
+    }
+  });
+
+  /* ── PRINT DOWNLOAD ───────────────────────────────────── */
+  function downloadPrint() {
+    // placeholder — replace with actual file URL when image is ready
+    alert('[ ARCHIVO DE IMPRESIÓN PENDIENTE ]');
+  }
+
+  /* click desktop to deselect icons */
+  document.getElementById('desktop-canvas').addEventListener('click', e => {
+    if (!e.target.closest('.folder-icon') && !e.target.closest('.os-window')) {
+      document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
+    }
+  });
+</script>
+
+<style>
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-6px)}
+    40%{transform:translateX(6px)}
+    60%{transform:translateX(-4px)}
+    80%{transform:translateX(4px)}
+  }
+  #gate-input.shake, .blocked-input.shake { animation: shake 0.4s ease; }
+</style>
+
+</body>
+</html>

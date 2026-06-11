@@ -75,8 +75,9 @@
     }
     #progress-pct { font-size: clamp(10px,1.4vw,13px); color: var(--blanco); margin-top: 4px; text-align: right; }
 
-    #logo-wrap { opacity: 0; margin-bottom: 3rem; transition: opacity 0.4s ease; }
+    #logo-wrap { opacity: 0; margin-bottom: 3.4rem; transition: opacity 0.4s ease; }
     #logo-wrap.visible { opacity: 1; }
+    #logo-wrap svg { width: min(660px, 84vw); height: auto; display: block; }
     #logo-wrap svg rect { fill: transparent; transition: fill 0.06s ease; }
     #logo-wrap svg rect.lit { fill: var(--azul); }
 
@@ -223,13 +224,42 @@
     .archivo-header {
       border-bottom: 1px solid rgba(243,243,243,0.1);
       padding-bottom: 14px; margin-bottom: 20px;
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 18px;
     }
+    .archivo-head-left { min-width: 0; }
     .archivo-meta {
       font-size: 9px; color: rgba(243,243,243,0.3);
       letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px;
     }
     .archivo-title {
       font-size: 13px; color: var(--blanco); letter-spacing: 0.05em;
+    }
+
+    /* ── ARCHIVO filters (top-right) ──────────────────────── */
+    .archivo-filters {
+      display: flex; align-items: center; gap: 7px;
+      flex-shrink: 0; padding-top: 2px;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 5px; cursor: pointer; line-height: 0;
+      opacity: 0.38;
+      transition: opacity 0.12s, background 0.12s, border-color 0.12s;
+    }
+    .filter-btn svg { height: 24px; width: auto; display: block; }
+    .filter-btn svg rect { fill: var(--azul); }
+    .filter-btn:hover { opacity: 0.7; }
+    .filter-btn.active {
+      opacity: 1;
+      background: rgba(68,84,164,0.16);
+      border-color: rgba(68,84,164,0.55);
+    }
+    .filter-empty {
+      font-size: 10px; color: rgba(243,243,243,0.3);
+      letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 24px 0; text-align: center;
     }
 
     .objeto-list { display: flex; flex-direction: column; gap: 0; }
@@ -337,9 +367,113 @@
     #statusbar-left, #statusbar-right {
       font-size: 9px; color: rgba(243,243,243,0.18); letter-spacing: 0.1em;
     }
+
+    /* ── ARCHIVO — clickable rows ─────────────────────────── */
+    .objeto-row {
+      cursor: pointer;
+      transition: background 0.12s, padding-left 0.12s;
+    }
+    .objeto-row:hover { background: rgba(68,84,164,0.12); padding-left: 8px; }
+    .objeto-row:hover .objeto-name { color: var(--azul); }
+    .objeto-row:active { background: rgba(68,84,164,0.22); }
+
+    /* ── OBJECT DETAIL WINDOW ─────────────────────────────── */
+    #win-object {
+      width: min(540px, 92vw); height: min(660px, 88vh);
+      top: 40px; left: 240px;
+    }
+    .obj-body { padding: 22px 24px 30px; }
+
+    .obj-imgwrap {
+      width: 100%; background: #000;
+      border: 1px solid rgba(243,243,243,0.12);
+      position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 220px;
+    }
+    .obj-canvas {
+      width: 100%; height: auto; display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .obj-loading {
+      position: absolute;
+      font-size: 9px; color: rgba(243,243,243,0.35);
+      letter-spacing: 0.2em; text-transform: uppercase;
+      animation: blink 1.1s step-end infinite;
+    }
+
+    .obj-decbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; margin: 14px 0 20px;
+    }
+    .obj-stars {
+      font-size: 12px; color: rgba(243,243,243,0.35);
+      letter-spacing: 0.1em; overflow: hidden;
+      white-space: nowrap; flex: 1;
+      user-select: none;
+    }
+    .obj-decrypt-btn {
+      background: var(--azul); border: none; color: var(--blanco);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.14em;
+      padding: 9px 16px; cursor: pointer;
+      text-transform: uppercase; white-space: nowrap;
+      transition: filter 0.12s;
+    }
+    .obj-decrypt-btn:hover { filter: brightness(1.2); }
+    .obj-decrypt-btn:disabled { opacity: 0.45; cursor: default; }
+
+    .obj-field {
+      font-size: 11px; color: rgba(243,243,243,0.55);
+      line-height: 1.9; letter-spacing: 0.015em;
+      margin-bottom: 13px;
+    }
+    .obj-field b { color: var(--blanco); font-weight: 600; }
+
+    .obj-foot-svg { margin-top: 28px; }
+    .obj-foot-svg svg { height: 56px; width: auto; display: block; }
+    .obj-foot-svg svg rect { fill: var(--azul); }
+
+    /* ── CRT SCREEN — curvatura + ojo de pez ──────────────── */
+    body { background: #0a0b0c; }
+
+    #crt {
+      position: fixed; inset: 0;
+      border-radius: 30px;
+      overflow: hidden;
+      filter: url(#crt-fisheye);
+      transform: translateZ(0);   /* own layer */
+    }
+
+    /* glass overlay: vignette + convex highlight + bezel */
+    #crt-glass {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 9500;
+      border-radius: 30px;
+      background:
+        radial-gradient(125% 125% at 50% 50%, transparent 52%, rgba(0,0,0,0.32) 78%, rgba(0,0,0,0.6) 100%),
+        radial-gradient(80% 55% at 50% -8%, rgba(255,255,255,0.06), transparent 60%);
+      box-shadow:
+        inset 0 0 140px 24px rgba(0,0,0,0.45),
+        inset 0 0 0 1px rgba(243,243,243,0.05),
+        inset 0 0 0 10px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body>
+
+<!-- fisheye displacement filter (map built in JS) -->
+<svg id="crt-filter-svg" width="0" height="0" aria-hidden="true" style="position:fixed;pointer-events:none">
+  <filter id="crt-fisheye" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+    <feImage id="crt-dmap" result="dmap" preserveAspectRatio="none"/>
+    <feDisplacementMap in="SourceGraphic" in2="dmap" scale="9"
+      xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<div id="crt">
 
 <!-- ══════════════════════════════════════════════════════ -->
 <!--  BOOT + PASSWORD SCREEN                               -->
@@ -505,51 +639,50 @@
       </div>
       <div class="win-body">
         <div class="archivo-header">
-          <div class="archivo-meta">MUESTRA DE DISEÑO ARGENTINO — 2025 — CURADURIA EN PROCESO</div>
-          <div class="archivo-title">Objetos en el límite de lo reconocible</div>
-        </div>
-        <div class="objeto-list">
-          <div class="objeto-row">
-            <div class="objeto-index">001</div>
-            <div class="objeto-info">
-              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
-              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
-              <div class="objeto-tag">EN CURADURÍA</div>
-            </div>
+          <div class="archivo-head-left">
+            <div class="archivo-meta">MUESTRA DE DISEÑO ARGENTINO — 2026 — 15 EXPEDIENTES</div>
+            <div class="archivo-title">Objetos en el límite de lo reconocible</div>
           </div>
-          <div class="objeto-row">
-            <div class="objeto-index">002</div>
-            <div class="objeto-info">
-              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
-              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
-              <div class="objeto-tag">EN CURADURÍA</div>
-            </div>
-          </div>
-          <div class="objeto-row">
-            <div class="objeto-index">003</div>
-            <div class="objeto-info">
-              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
-              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
-              <div class="objeto-tag">EN CURADURÍA</div>
-            </div>
-          </div>
-          <div class="objeto-row">
-            <div class="objeto-index">004</div>
-            <div class="objeto-info">
-              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
-              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
-              <div class="objeto-tag">EN CURADURÍA</div>
-            </div>
-          </div>
-          <div class="objeto-row">
-            <div class="objeto-index">005</div>
-            <div class="objeto-info">
-              <div class="objeto-name">[ OBJETO SIN TÍTULO ]</div>
-              <div class="objeto-desc">Descripción pendiente. El objeto existe pero resiste la catalogación.<br>Diseñador / origen por confirmar.</div>
-              <div class="objeto-tag">EN CURADURÍA</div>
-            </div>
+          <div class="archivo-filters" id="archivo-filters">
+            <button class="filter-btn" data-cat="1" title="Filtro 01">
+              <svg width="311" height="311" viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="84.8186" height="310.999"/>
+                <rect x="113.094" y="169.637" width="84.8186" height="56.5452"/>
+                <rect x="113.094" y="254.455" width="84.8186" height="56.5452"/>
+                <rect x="226.182" y="84.8173" width="84.8186" height="141.363"/>
+              </svg>
+            </button>
+            <button class="filter-btn" data-cat="2" title="Filtro 02">
+              <svg width="311" height="311" viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect y="254.06" width="84.6869" height="56.4574"/>
+                <rect x="225.831" y="84.6858" width="84.6869" height="225.83"/>
+                <rect y="84.6858" width="84.6869" height="141.144"/>
+                <rect x="111.503" width="86.0983" height="310.516"/>
+              </svg>
+            </button>
+            <button class="filter-btn" data-cat="3" title="Filtro 03">
+              <svg width="311" height="311" viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="84.6869" height="56.4575"/>
+                <rect x="112.912" width="84.6869" height="310.516"/>
+                <rect x="225.825" y="254.06" width="84.6869" height="56.4575"/>
+                <rect y="84.6858" width="84.6869" height="56.4575"/>
+                <rect y="169.372" width="84.6869" height="56.4575"/>
+                <rect x="225.825" y="84.6858" width="84.6869" height="56.4575"/>
+                <rect x="225.825" y="169.372" width="84.6869" height="56.4575"/>
+              </svg>
+            </button>
+            <button class="filter-btn" data-cat="4" title="Filtro 04">
+              <svg width="198" height="311" viewBox="0 0 198 311" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="112.913" width="84.6875" height="141.143"/>
+                <rect x="112.913" y="169.374" width="84.6875" height="56.4573"/>
+                <rect x="112.913" y="254.059" width="84.6875" height="56.4573"/>
+                <rect width="84.6875" height="56.4573"/>
+                <rect y="169.371" width="84.6875" height="141.143"/>
+              </svg>
+            </button>
           </div>
         </div>
+        <div class="objeto-list" id="objeto-list"></div>
       </div>
       <div class="win-resize"></div>
     </div>
@@ -598,8 +731,33 @@
       </div>
     </div>
 
+    <!-- ── WINDOW: OBJECT DETAIL ────────────────────────── -->
+    <div class="os-window" id="win-object">
+      <div class="win-titlebar">
+        <button class="win-close-btn" data-close="win-object">×</button>
+        <span class="win-title" id="obj-title">EXPEDIENTE</span>
+        <div class="win-spacer"></div>
+      </div>
+      <div class="win-body obj-body">
+        <div class="obj-imgwrap">
+          <canvas id="obj-canvas" class="obj-canvas"></canvas>
+          <div class="obj-loading" id="obj-loading">CARGANDO...</div>
+        </div>
+        <div class="obj-decbar">
+          <div class="obj-stars">***********************************</div>
+          <button class="obj-decrypt-btn" id="obj-decrypt-btn" disabled>DESENCRIPTAR</button>
+        </div>
+        <div id="obj-text"></div>
+        <div class="obj-foot-svg" id="obj-foot-svg"></div>
+      </div>
+      <div class="win-resize"></div>
+    </div>
+
   </div><!-- /desktop-canvas -->
 </div><!-- /desktop -->
+
+</div><!-- /crt -->
+<div id="crt-glass"></div>
 
 <script>
   const PASSWORD         = 'P1N8K82S';
@@ -704,6 +862,30 @@
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.1);
     osc.start(); osc.stop(ctx.currentTime + 1.2);
     noise({ dur: 0.08, vol: 0.1, freq: 150, q: 0.5, delay: 0.3 });
+  }
+
+  /* decode sweep — desencriptar */
+  function sndDecrypt(dur = 1.4) {
+    const ctx = getCtx();
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const flt = ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.Q.value = 1.1;
+    flt.frequency.setValueAtTime(110, t0);
+    flt.frequency.exponentialRampToValueAtTime(2600, t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.11, t0 + 0.1);
+    g.gain.setValueAtTime(0.11, t0 + dur - 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(flt); flt.connect(g); g.connect(ctx.destination);
+    src.start(t0); src.stop(t0 + dur + 0.05);
+    tone({ freq: 42, type: 'sawtooth', dur: dur, vol: 0.07 });
+    /* resolve thud */
+    tone({ freq: 58, type: 'sine', dur: 0.1, vol: 0.12, delay: dur });
+    noise({ dur: 0.03, vol: 0.14, freq: 320, q: 0.5, delay: dur });
   }
 
   /* unlock audio on first interaction */
@@ -928,6 +1110,294 @@
     if (!e.target.closest('.folder-icon') && !e.target.closest('.os-window')) {
       document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
     }
+  });
+
+  /* ══════════════════════════════════════════════════════ */
+  /*  ARCHIVO — OBJETOS: lista + visor con desencriptado     */
+  /* ══════════════════════════════════════════════════════ */
+  /* cat: 1-4 → filtro. cat '2' = obras gráficas / bidimensionales (definida).
+     Las cat 1/3/4 siguen como placeholder hasta definirse. */
+  const OBJETOS = [
+    { slug: 'ARTAUD', name: 'ARTAUD', cat: '2',
+      item: 'CRP-1973-JG',
+      contencion: 'CRP-1973-JG debe ser resguardado en una cámara de aislamiento cromático en el Sitio-██, montado sobre un soporte que no altere sus vértices anómalos. Toda inspección visual debe realizarse a través de filtros ópticos para evitar distorsiones perceptivas en el personal.',
+      descripcion: 'CRP-1973-JG es un plano bidimensional de 30 × 30 cm que presenta la composición visual y fotográfica desarrollada por Juan Gatti para el lanzamiento discográfico "Artaud" de Pescado Rabioso en 1973.' },
+    { slug: 'ARTURO', name: 'ARTURO', cat: '2',
+      item: 'CRP-1944-TM',
+      contencion: 'CRP-1944-TM debe ser preservado en una vitrina de vidrio de plomo con atmósfera presurizada y control lumínico estricto en el Sitio-██. Toda manipulación documental debe realizarse mediante instrumental automatizado para evitar variaciones de carga electrostática.',
+      descripcion: 'CRP-1944-TM es una pieza impresa de 27 × 21 cm que corresponde a la composición gráfica original realizada en litografía sobre papel por Tomás Maldonado para la portada de la revista "Arturo" en 1944.' },
+    { slug: 'HONGO',       name: 'HONGO',       cat: '1' },
+    { slug: 'HUESO',       name: 'HUESO',       cat: '3' },
+    { slug: 'LAMPARA',     name: 'LÁMPARA',     cat: '4' },
+    { slug: 'LUCA',        name: 'LUCA',        cat: '1' },
+    { slug: 'MAMUT',       name: 'MAMUT',       cat: '3' },
+    { slug: 'MOLINA',      name: 'MOLINA',      cat: '4' },
+    { slug: 'NEGRA',       name: 'NEGRA',       cat: '1' },
+    { slug: 'PARTITURA', name: 'PARTITURA', cat: '2',
+      item: 'CRP-1968-GC',
+      contencion: 'CRP-1968-GC debe ser preservado en una vitrina de aislamiento acústico absoluto y luz ultravioleta filtrada en el Sitio-██. Se prohíbe la lectura visual directa o el escaneo de sus trazos por parte de personal con formación en ejecución musical fuera de los protocolos de experimentación autorizados.',
+      descripcion: 'CRP-1968-GC es un documento gráfico de medidas variables ejecutado en tinta sobre papel, correspondiente a la partitura visual para la obra musical "El Pozo", creada por la compositora Graciela Castillo en 1968.' },
+    { slug: 'RADIO',       name: 'RADIO',       cat: '3' },
+    { slug: 'ROCA',        name: 'ROCA',        cat: '4' },
+    { slug: 'SELK',        name: 'SELK',        cat: '1' },
+    { slug: 'SILLA_ARANA', name: 'SILLA ARAÑA', cat: '3' },
+    { slug: 'TOP',         name: 'TOP',         cat: '4' },
+  ];
+
+  /* category glyphs — coinciden con los botones de filtro */
+  const GLYPHS = {
+    '1': '<svg viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="84.8186" height="310.999"/><rect x="113.094" y="169.637" width="84.8186" height="56.5452"/><rect x="113.094" y="254.455" width="84.8186" height="56.5452"/><rect x="226.182" y="84.8173" width="84.8186" height="141.363"/></svg>',
+    '2': '<svg viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="254.06" width="84.6869" height="56.4574"/><rect x="225.831" y="84.6858" width="84.6869" height="225.83"/><rect y="84.6858" width="84.6869" height="141.144"/><rect x="111.503" width="86.0983" height="310.516"/></svg>',
+    '3': '<svg viewBox="0 0 311 311" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="84.6869" height="56.4575"/><rect x="112.912" width="84.6869" height="310.516"/><rect x="225.825" y="254.06" width="84.6869" height="56.4575"/><rect y="84.6858" width="84.6869" height="56.4575"/><rect y="169.372" width="84.6869" height="56.4575"/><rect x="225.825" y="84.6858" width="84.6869" height="56.4575"/><rect x="225.825" y="169.372" width="84.6869" height="56.4575"/></svg>',
+    '4': '<svg viewBox="0 0 198 311" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="112.913" width="84.6875" height="141.143"/><rect x="112.913" y="169.374" width="84.6875" height="56.4573"/><rect x="112.913" y="254.059" width="84.6875" height="56.4573"/><rect width="84.6875" height="56.4573"/><rect y="169.371" width="84.6875" height="141.143"/></svg>',
+  };
+
+  /* build SCP-style text from object data (fallback genérico si no hay data) */
+  function buildObjectText(o) {
+    const item = o.item || 'CRP-████-██';
+    const cont = o.contencion || 'Expediente en proceso de catalogación. Procedimientos de contención pendientes de definición por la curaduría.';
+    const desc = o.descripcion || 'Registro descriptivo pendiente. El objeto existe pero resiste la clasificación.';
+    return `
+      <div class="obj-field"><b>Ítem N.º:</b> ${item}</div>
+      <div class="obj-field"><b>Clasificación del Objeto:</b> ██████████</div>
+      <div class="obj-field"><b>Procedimientos Especiales de Contención:</b> ${cont}</div>
+      <div class="obj-field"><b>Descripción:</b> ${desc}</div>
+    `;
+  }
+
+  /* render list */
+  const objetoListEl = document.getElementById('objeto-list');
+  OBJETOS.forEach((o, i) => {
+    const row = document.createElement('div');
+    row.className = 'objeto-row';
+    row.dataset.cat = o.cat;
+    row.innerHTML = `
+      <div class="objeto-index">${String(i + 1).padStart(3, '0')}</div>
+      <div class="objeto-info">
+        <div class="objeto-name">${o.name}</div>
+        <div class="objeto-desc">Expediente cifrado. Requiere desencriptación para visualizar el registro fotográfico del objeto.</div>
+        <div class="objeto-tag">EXPEDIENTE — CRP</div>
+      </div>`;
+    row.addEventListener('click', () => openObject(o));
+    objetoListEl.appendChild(row);
+  });
+
+  /* ── ARCHIVO filters ──────────────────────────────────── */
+  const activeFilters = new Set();
+  let filterEmptyEl = null;
+
+  function applyFilters() {
+    let visible = 0;
+    objetoListEl.querySelectorAll('.objeto-row').forEach(row => {
+      const show = activeFilters.size === 0 || activeFilters.has(row.dataset.cat);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (visible === 0) {
+      if (!filterEmptyEl) {
+        filterEmptyEl = document.createElement('div');
+        filterEmptyEl.className = 'filter-empty';
+        filterEmptyEl.textContent = '// SIN EXPEDIENTES EN ESTE FILTRO';
+        objetoListEl.appendChild(filterEmptyEl);
+      }
+      filterEmptyEl.style.display = '';
+    } else if (filterEmptyEl) {
+      filterEmptyEl.style.display = 'none';
+    }
+  }
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      if (activeFilters.has(cat)) {
+        activeFilters.delete(cat);
+        btn.classList.remove('active');
+      } else {
+        activeFilters.add(cat);
+        btn.classList.add('active');
+      }
+      sndKeyClick();
+      applyFilters();
+    });
+  });
+
+  /* image cache + loader */
+  const imgCache = {};
+  function loadImg(src) {
+    return new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => rej(new Error('no img: ' + src));
+      im.src = src;
+    });
+  }
+
+  /* detail window refs */
+  const winObject  = document.getElementById('win-object');
+  const objTitle   = document.getElementById('obj-title');
+  const objCanvas  = document.getElementById('obj-canvas');
+  const objLoading = document.getElementById('obj-loading');
+  const objText    = document.getElementById('obj-text');
+  const objBtn     = document.getElementById('obj-decrypt-btn');
+  const objCtx     = objCanvas.getContext('2d');
+
+  let curObj   = null;
+  let decState = 'cipher';            // 'cipher' | 'plain'
+  let coverBuf = null, normalBuf = null;
+  let decToken = 0;                   // cancels in-flight decode loops
+
+  async function openObject(o) {
+    curObj = o;
+    decState = 'cipher';
+    decToken++;                       // stop any running decode
+    objTitle.textContent = 'EXPEDIENTE — ' + o.name;
+    objText.innerHTML = buildObjectText(o);
+    document.getElementById('obj-foot-svg').innerHTML = GLYPHS[o.cat] || '';
+    objBtn.disabled = true;
+    objBtn.textContent = 'CARGANDO...';
+    objLoading.style.display = 'block';
+    objLoading.textContent = 'CARGANDO REGISTRO...';
+    objCtx.clearRect(0, 0, objCanvas.width, objCanvas.height);
+
+    if (!winObject.classList.contains('open')) {
+      winObject.classList.add('open');
+      sndWinOpen();
+    } else {
+      sndKeyClick();
+    }
+    bringToFront(winObject);
+
+    try {
+      if (!imgCache[o.slug]) imgCache[o.slug] = {};
+      const c = imgCache[o.slug];
+      if (!c.cover)  c.cover  = await loadImg('assets/cover/'  + o.slug + '.png');
+      if (!c.normal) c.normal = await loadImg('assets/normal/' + o.slug + '.png');
+      if (curObj !== o) return;       // user switched while loading
+      setupCanvas(c.cover, c.normal);
+      objLoading.style.display = 'none';
+      objBtn.disabled = false;
+      objBtn.textContent = 'DESENCRIPTAR';
+    } catch (err) {
+      objLoading.textContent = '// ERROR DE LECTURA DE ARCHIVO';
+    }
+  }
+
+  function setupCanvas(cover, normal) {
+    const maxW = 460;
+    const ratio = cover.naturalHeight / cover.naturalWidth;
+    const W = Math.min(maxW, cover.naturalWidth);
+    const H = Math.round(W * ratio);
+    objCanvas.width = W; objCanvas.height = H;
+
+    coverBuf = document.createElement('canvas');
+    coverBuf.width = W; coverBuf.height = H;
+    coverBuf.getContext('2d').drawImage(cover, 0, 0, W, H);
+
+    normalBuf = document.createElement('canvas');
+    normalBuf.width = W; normalBuf.height = H;
+    normalBuf.getContext('2d').drawImage(normal, 0, 0, W, H);
+
+    objCtx.drawImage(coverBuf, 0, 0);
+  }
+
+  /* decrypt button — forward/reverse toggle */
+  objBtn.addEventListener('click', () => {
+    if (objBtn.disabled || !coverBuf) return;
+    const goingPlain = decState === 'cipher';
+    const fromBuf = goingPlain ? coverBuf : normalBuf;
+    const toBuf   = goingPlain ? normalBuf : coverBuf;
+    objBtn.disabled = true;
+    objBtn.textContent = goingPlain ? 'DESENCRIPTANDO...' : 'CIFRANDO...';
+    sndDecrypt(1.4);
+    runDecode(fromBuf, toBuf, () => {
+      decState = goingPlain ? 'plain' : 'cipher';
+      objBtn.textContent = goingPlain ? 'VER CIFRADO' : 'DESENCRIPTAR';
+      objBtn.disabled = false;
+    });
+  });
+
+  /* pixel-by-pixel decode between two canvas buffers */
+  function runDecode(fromBuf, toBuf, onDone) {
+    const W = objCanvas.width, H = objCanvas.height;
+    const cell = 7;
+    const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+    const N = cols * rows;
+    const thr   = new Float32Array(N);
+    const state = new Uint8Array(N);  // 0=from, 1=frontier, 2=to
+    for (let i = 0; i < N; i++) thr[i] = Math.random();
+
+    const dur = 1400, band = 0.16;
+    const token = ++decToken;
+    const start = performance.now();
+
+    objCtx.drawImage(fromBuf, 0, 0, W, H);
+
+    function frame(now) {
+      if (token !== decToken) return;       // cancelled
+      const p = (now - start) / dur;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const i = r * cols + c, t = thr[i];
+          const desired = p >= t + band ? 2 : (p >= t ? 1 : 0);
+          if (desired === 0) continue;           // still 'from' — already drawn
+          if (desired === 2 && state[i] === 2) continue;  // already final
+          const x = c * cell, y = r * cell;
+          const w = Math.min(cell, W - x), h = Math.min(cell, H - y);
+          if (desired === 2) {
+            objCtx.drawImage(toBuf, x, y, w, h, x, y, w, h);
+          } else {
+            const rnd = Math.random();
+            objCtx.fillStyle = rnd < 0.34 ? '#4454A4' : (rnd < 0.62 ? '#1C1E21' : '#2b3470');
+            objCtx.fillRect(x, y, w, h);
+          }
+          state[i] = desired;
+        }
+      }
+      if (p < 1 + band) {
+        requestAnimationFrame(frame);
+      } else {
+        objCtx.drawImage(toBuf, 0, 0, W, H);
+        if (onDone) onDone();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ══════════════════════════════════════════════════════ */
+  /*  CRT FISHEYE — displacement map (R=x, G=y)              */
+  /* ══════════════════════════════════════════════════════ */
+  function buildFisheyeMap() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const w = Math.max(2, Math.round(vw / 4));
+    const h = Math.max(2, Math.round(vh / 4));
+    const cvs = document.createElement('canvas');
+    cvs.width = w; cvs.height = h;
+    const ctx = cvs.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        img.data[i]     = Math.round(255 * x / (w - 1)); // R → x displacement
+        img.data[i + 1] = Math.round(255 * y / (h - 1)); // G → y displacement
+        img.data[i + 2] = 128;
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cvs.toDataURL();
+    const fe = document.getElementById('crt-dmap');
+    fe.setAttribute('href', url);
+    fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url);
+    fe.setAttribute('width', vw);
+    fe.setAttribute('height', vh);
+    fe.setAttribute('x', 0);
+    fe.setAttribute('y', 0);
+  }
+  buildFisheyeMap();
+  let fisheyeResizeT;
+  window.addEventListener('resize', () => {
+    clearTimeout(fisheyeResizeT);
+    fisheyeResizeT = setTimeout(buildFisheyeMap, 150);
   });
 </script>
 

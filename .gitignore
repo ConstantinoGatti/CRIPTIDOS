@@ -1,6 +1,6 @@
 # Config local del editor
 .claude/
 
-# Fotos originales crudas (redundantes con CRIPTIDOS/assets/)
-CRIPTIDOS/FOTOS WEB CRIPTIDOS/
-CRIPTIDOS/FOTOS OBJETOS WEB NORMAL/
+# Fotos originales crudas (redundantes con assets/)
+FOTOS WEB CRIPTIDOS/
+FOTOS OBJETOS WEB NORMAL/

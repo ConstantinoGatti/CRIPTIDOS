@@ -221,13 +221,32 @@
     #win-archivo { width: min(680px, 90vw); height: min(480px, 80vh); top: 60px; left: 140px; }
     #win-print   { width: min(480px, 85vw); height: min(420px, 75vh); top: 80px; left: 200px; }
     #win-blocked { width: min(400px, 80vw); height: min(280px, 60vh); top: 100px; left: 160px; }
-    #win-papelera { width: min(380px, 80vw); height: min(240px, 55vh); top: 120px; left: 280px; }
     #win-orc { width: min(460px, 86vw); height: min(320px, 65vh); top: 90px; left: 220px; }
-    .papelera-empty, .orc-placeholder {
+    .orc-placeholder {
       display: flex; align-items: center; justify-content: center;
       height: 100%; font-size: 11px; letter-spacing: 0.16em;
       color: rgba(243,243,243,0.25); text-transform: uppercase;
     }
+
+    /* ── PAPELERA: sopa de letras + plantilla ─────────────── */
+    .recovered { position: absolute; display: none; padding: 18px; box-sizing: content-box; }
+    .recovered.shown { display: block; }
+    .recovered .grid { display: grid; grid-template-columns: repeat(12, 24px); grid-auto-rows: 26px; }
+
+    #soup { background: var(--azul); cursor: grab; z-index: 8000; }
+    #soup .grid { outline: 2px dashed rgba(243,243,243,0.4); }
+    #soup .c {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: rgba(243,243,243,0.85);
+      font-family: 'JetBrains Mono', monospace; user-select: none;
+    }
+    #soup .c.dot { color: transparent; }
+    #soup .c.dot::after { content: ''; width: 14px; height: 14px; background: var(--amarillo); }
+
+    #stencil { cursor: grab; z-index: 8001; }
+    #stencil .s { width: 24px; height: 26px; background: #d9d9d9; }
+    #stencil .s.hole { background: transparent; }   /* guía y ventanas: misma "ventana" */
+    .recovered:active { cursor: grabbing; }
 
     /* ── ARCHIVO content ──────────────────────────────────── */
     .archivo-header {
@@ -793,18 +812,9 @@
       <div class="win-resize"></div>
     </div>
 
-    <!-- ── WINDOW: PAPELERA ─────────────────────────────── -->
-    <div class="os-window" id="win-papelera">
-      <div class="win-titlebar">
-        <button class="win-close-btn" data-close="win-papelera">×</button>
-        <span class="win-title">PAPELERA</span>
-        <div class="win-spacer"></div>
-      </div>
-      <div class="win-body">
-        <div class="papelera-empty">// PAPELERA VACÍA</div>
-      </div>
-      <div class="win-resize"></div>
-    </div>
+    <!-- archivos recuperados de la papelera (sopa + plantilla) -->
+    <div id="soup" class="recovered"></div>
+    <div id="stencil" class="recovered"></div>
 
     <!-- ── WINDOW: ORC (desbloqueada por contraseña) ────── -->
     <div class="os-window" id="win-orc">
@@ -1058,11 +1068,13 @@
   document.querySelectorAll('.folder-icon').forEach(icon => {
     icon.addEventListener('click', () => {
       const winId = icon.dataset.target;
-      const win = document.getElementById(winId);
-      if (!win) return;
-
       document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
       icon.classList.add('selected');
+
+      if (winId === 'win-papelera') { revealPapelera(); return; }
+
+      const win = document.getElementById(winId);
+      if (!win) return;
 
       if (win.classList.contains('open')) {
         bringToFront(win);
@@ -1533,6 +1545,103 @@
     clearTimeout(fisheyeResizeT);
     fisheyeResizeT = setTimeout(buildFisheyeMap, 150);
   });
+
+  /* ══════════════════════════════════════════════════════ */
+  /*  PAPELERA — sopa de letras + plantilla (revela ORC)     */
+  /* ══════════════════════════════════════════════════════ */
+  const SOUP_COLS = 12, SOUP_ROWS = 14, CELL_W = 24;
+
+  /* Mecánica: la plantilla tiene un set de agujeros-guía en la fila 0; sólo el del
+     centro (GUIDE_COL) es el verdadero. La sopa tiene 3 puntos amarillos = 3 posiciones
+     candidatas. Alinear la guía a cada punto da un offset distinto; sólo el punto
+     correcto (DOT_OK) hace que las ventanas principales muestren O R C. */
+  const DOTS = [2, 6, 10];        // columnas de los 3 puntos amarillos (franja superior)
+  const DOT_OK = 2;               // el punto correcto es el de la IZQUIERDA
+  const GUIDE_COL = 6;            // única guía de la plantilla
+  const GUIDE_HOLES = [6];        // solo la guía del medio
+  const MAIN = [[5,4,'O'], [6,8,'R'], [7,12,'C']];  // [col,row,letra] de las ventanas (fila>=1)
+  const ROWS = SOUP_ROWS + 1;   // fila 0 = guías/puntos; filas 1..14 = letras (todo una grilla)
+
+  const OFF_OK = DOT_OK - GUIDE_COL;   // desfase de columnas en la combinación correcta
+  const plantMap = {}, mainHole = new Set();
+  MAIN.forEach(([c,r,ltr]) => { plantMap[r+'-'+(c+OFF_OK)] = ltr; mainHole.add(r+'-'+c); });
+  const dotColSet = new Set(DOTS);
+
+  const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  (function buildPapelera() {
+    const soup = document.getElementById('soup');
+    const sg = document.createElement('div'); sg.className = 'grid';
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < SOUP_COLS; c++) {
+        const cell = document.createElement('div');
+        if (r === 0) cell.className = 'c' + (dotColSet.has(c) ? ' dot' : '');   // fila guía (puntos)
+        else { cell.className = 'c'; cell.textContent = plantMap[r+'-'+c] || ABC[Math.random()*26|0]; }
+        sg.appendChild(cell);
+      }
+    soup.appendChild(sg);
+
+    const stencil = document.getElementById('stencil');
+    const tg = document.createElement('div'); tg.className = 'grid';
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < SOUP_COLS; c++) {
+        const cell = document.createElement('div');
+        const isHole = (r === 0 && c === GUIDE_COL) || mainHole.has(r+'-'+c);
+        cell.className = 's' + (isHole ? ' hole' : '');   // todo gris menos las ventanas
+        tg.appendChild(cell);
+      }
+    stencil.appendChild(tg);
+  })();
+
+  /* drag genérico relativo al canvas */
+  function makeDraggable(el, onDrop) {
+    let dx = 0, dy = 0, active = false;
+    el.addEventListener('mousedown', e => {
+      active = true;
+      const r = el.getBoundingClientRect();
+      dx = e.clientX - r.left; dy = e.clientY - r.top;
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!active) return;
+      const c = document.getElementById('desktop-canvas').getBoundingClientRect();
+      el.style.left = (e.clientX - c.left - dx) + 'px';
+      el.style.top  = (e.clientY - c.top  - dy) + 'px';
+    });
+    document.addEventListener('mouseup', () => { if (active) { active = false; onDrop && onDrop(); } });
+  }
+
+  const soupEl = document.getElementById('soup');
+  const stencilEl = document.getElementById('stencil');
+  makeDraggable(soupEl);
+  makeDraggable(stencilEl, () => {
+    /* engancha la guía al punto amarillo más cercano (3 candidatos). Sin pista de
+       cuál es el correcto: hay que leer las ventanas. */
+    const sl = parseFloat(soupEl.style.left), st = parseFloat(soupEl.style.top);
+    const cl = parseFloat(stencilEl.style.left), ct = parseFloat(stencilEl.style.top);
+    let best = null, bestD = Infinity;
+    DOTS.forEach(d => {
+      const tx = sl + (d - GUIDE_COL) * CELL_W, ty = st;   // posición que alinea la guía al punto d
+      const dist = Math.hypot(cl - tx, ct - ty);
+      if (dist < bestD) { bestD = dist; best = { tx, ty, d }; }
+    });
+    if (best && bestD < 10) {
+      stencilEl.style.left = best.tx + 'px';
+      stencilEl.style.top  = best.ty + 'px';
+      sndKeyClick();
+    }
+  });
+
+  let papeleraOpened = false;
+  function revealPapelera() {
+    if (!papeleraOpened) {
+      soupEl.style.left = '110px';  soupEl.style.top = '80px';
+      stencilEl.style.left = '500px'; stencilEl.style.top = '90px';
+      papeleraOpened = true;
+    }
+    soupEl.classList.add('shown');
+    stencilEl.classList.add('shown');
+    sndWinOpen();
+  }
 </script>
 
 <style>

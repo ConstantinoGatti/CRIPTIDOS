@@ -389,6 +389,22 @@
     .objeto-row:hover .objeto-name { color: var(--azul); }
     .objeto-row:active { background: rgba(68,84,164,0.22); }
 
+    /* locked expedientes — visibles pero no seleccionables */
+    .objeto-row.locked { opacity: 0.32; cursor: not-allowed; }
+    .objeto-row.locked:hover { background: none; padding-left: 0; }
+    .objeto-row.locked:hover .objeto-name { color: var(--blanco); }
+    .objeto-row.locked .objeto-tag {
+      color: var(--amarillo); border-color: rgba(251,155,16,0.4);
+    }
+    .objeto-row.locked .objeto-tag::after { content: ' — BLOQUEADO'; }
+
+    #archivo-notice {
+      font-size: 10px; color: var(--amarillo); letter-spacing: 0.08em;
+      height: 0; overflow: hidden; opacity: 0;
+      transition: opacity 0.15s, height 0.15s, margin 0.15s;
+    }
+    #archivo-notice.visible { height: auto; opacity: 1; margin-bottom: 12px; }
+
     /* ── OBJECT DETAIL WINDOW ─────────────────────────────── */
     #win-object {
       width: min(540px, 92vw); height: min(660px, 88vh);
@@ -705,6 +721,7 @@
             </button>
           </div>
         </div>
+        <div id="archivo-notice"></div>
         <div class="objeto-list" id="objeto-list"></div>
       </div>
       <div class="win-resize"></div>
@@ -1139,6 +1156,10 @@
       ok.classList.add('visible');
       document.getElementById('blocked-input').disabled = true;
       sndSuccess();
+      accessLevel = 2;
+      updateLocks();
+      document.getElementById('statusbar-right').innerHTML =
+        'SESIÓN ACTIVA — <span style="color:var(--amarillo)">NIVEL 2</span>';
       setTimeout(() => {
         document.getElementById('win-blocked').classList.remove('open');
         const w = document.getElementById('win-orc');
@@ -1258,11 +1279,14 @@
   }
 
   /* render list */
+  let accessLevel = 1;  // 5 objetos por nivel; ORC sube a 2
+
   const objetoListEl = document.getElementById('objeto-list');
   OBJETOS.forEach((o, i) => {
     const row = document.createElement('div');
     row.className = 'objeto-row';
     row.dataset.cat = o.cat;
+    row.dataset.level = Math.floor(i / 5) + 1;
     row.innerHTML = `
       <div class="objeto-index">${String(i + 1).padStart(3, '0')}</div>
       <div class="objeto-info">
@@ -1270,9 +1294,27 @@
         <div class="objeto-desc">Expediente cifrado. Requiere desencriptación para visualizar el registro fotográfico del objeto.</div>
         <div class="objeto-tag">EXPEDIENTE — CRP</div>
       </div>`;
-    row.addEventListener('click', () => openObject(o));
+    row.addEventListener('click', () => {
+      if (+row.dataset.level > accessLevel) { sndError(); showLockNotice(+row.dataset.level); return; }
+      openObject(o);
+    });
     objetoListEl.appendChild(row);
   });
+
+  function updateLocks() {
+    objetoListEl.querySelectorAll('.objeto-row').forEach(r =>
+      r.classList.toggle('locked', +r.dataset.level > accessLevel));
+  }
+  updateLocks();
+
+  let noticeTimer;
+  function showLockNotice(lvl) {
+    const n = document.getElementById('archivo-notice');
+    n.textContent = `// ACCESO DENEGADO — EXPEDIENTE REQUIERE NIVEL ${lvl}`;
+    n.classList.add('visible');
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => n.classList.remove('visible'), 2200);
+  }
 
   /* ── ARCHIVO filters ──────────────────────────────────── */
   const activeFilters = new Set();

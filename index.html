@@ -209,7 +209,8 @@ textarea:focus{border-color:var(--accent)}
     <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v9M4 5l4-4 4 4M2 13h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Imagen
   </button>
-  <input type="file" id="file-input" accept="image/*" style="display:none"/>
+  <input type="file" id="file-input" accept="image/*,video/*" style="display:none"/>
+  <video id="src-video" playsinline muted loop crossorigin="anonymous" style="display:none"></video>
   <div class="sep"></div>
   <button class="btn btn-ghost" id="btn-render" title="Render (Enter)">
     <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><polygon points="3,2 14,8 3,14" fill="currentColor"/></svg>
@@ -226,6 +227,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="sep"></div>
   <button class="btn" id="btn-export-svg">SVG↓</button>
   <button class="btn" id="btn-export-png">PNG↓</button>
+  <button class="btn" id="btn-export-webm" title="Exportar video (solo si cargaste un video)">WebM↓</button>
   <div class="sep"></div>
   <button class="btn btn-ghost" id="btn-reset">Reset</button>
 </header>
@@ -297,6 +299,7 @@ textarea:focus{border-color:var(--accent)}
   </div>
   <div class="zoom-info" id="zoom-info">100%</div>
   <div class="vp-tools">
+    <button class="btn btn-sm btn-ghost" id="btn-playpause" title="Play/Pausa video" style="display:none">⏸ Pausa</button>
     <button class="btn btn-sm btn-ghost" id="btn-fit" title="Fit (F)">Fit</button>
     <button class="btn btn-sm btn-ghost" id="btn-zoom-in">+</button>
     <button class="btn btn-sm btn-ghost" id="btn-zoom-out">−</button>
@@ -786,6 +789,15 @@ function registerSymbol(slot){
            `0 0 ${slot.svgEl.getAttribute('width')||'100'} ${slot.svgEl.getAttribute('height')||'100'}`;
   sym.setAttribute('viewBox',vb);
   [...slot.svgEl.childNodes].forEach(n=>sym.appendChild(n.cloneNode(true)));
+  /* Strip inner fill/stroke so <use fill="..."> cascades and recolor works.
+     Capture first real fill as the asset's original color.
+     ponytail: monochrome assets only; multi-color art loses secondary colors. */
+  slot.originalColor='#4454A4';
+  sym.querySelectorAll('*').forEach(el=>{
+    const f=el.getAttribute('fill');
+    if(f&&f!=='none'){ slot.originalColor=f; el.removeAttribute('fill'); }
+    if(el.getAttribute('stroke')&&el.getAttribute('stroke')!=='none') el.removeAttribute('stroke');
+  });
   svgDefs.appendChild(sym);
 }
 
@@ -966,17 +978,12 @@ function doRender(){
     use.setAttribute('transform',
       `translate(${(cx+nox).toFixed(2)},${(cy+noy).toFixed(2)}) rotate(${rotV.toFixed(2)}) scale(${scV.toFixed(3)}) ${sw}`);
 
-    /* Color: per-slot override > global mode */
-    let col;
-    if(mod.useCustomColor){
-      col=mod.customColor;
-    } else {
-      col=computeColor(px);
-    }
-    if(col!==null){
-      if(S.colorTarget==='fill'||S.colorTarget==='both')   use.setAttribute('fill',col);
-      if(S.colorTarget==='stroke'||S.colorTarget==='both') use.setAttribute('stroke',col);
-    }
+    /* Color: per-slot override > global mode > asset original.
+       Inner fills were stripped, so we always set a fill on <use>. */
+    let col = mod.useCustomColor ? mod.customColor : computeColor(px);
+    if(col===null) col=mod.originalColor;
+    if(S.colorTarget==='fill'||S.colorTarget==='both')   use.setAttribute('fill',col);
+    if(S.colorTarget==='stroke'||S.colorTarget==='both') use.setAttribute('stroke',col);
     if(S.strokeW>0&&(S.colorTarget==='stroke'||S.colorTarget==='both'))
       use.setAttribute('stroke-width',S.strokeW);
     if(opV<0.999) use.setAttribute('opacity',opV.toFixed(3));
@@ -1009,16 +1016,26 @@ function chooseModule(ci,lumByte){
 /* ════════════════════════════════════════════════
    IMAGE LOADING
 ════════════════════════════════════════════════ */
+/* Shared offscreen canvas for pixel sampling (image or video frame). */
+const sampleCanvas=document.createElement('canvas');
+const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});
+const srcVideo=$('src-video');
+let isVideo=false;
+
+function sampleInto(source){
+  sampleCanvas.width=srcW; sampleCanvas.height=srcH;
+  sampleCtx.drawImage(source,0,0,srcW,srcH);
+  pixelData=sampleCtx.getImageData(0,0,srcW,srcH).data;
+}
+
 function loadImageFile(file){
+  isVideo=false; srcVideo.pause(); srcVideo.removeAttribute('src');
+  $('btn-playpause').style.display='none';
   const url=URL.createObjectURL(file);
   const img=new Image();
   img.onload=()=>{
     srcW=img.naturalWidth; srcH=img.naturalHeight;
-    const oc=document.createElement('canvas');
-    oc.width=srcW; oc.height=srcH;
-    const oc2=oc.getContext('2d',{willReadFrequently:true});
-    oc2.drawImage(img,0,0);
-    pixelData=oc2.getImageData(0,0,srcW,srcH).data;
+    sampleInto(img);
     $('preview-img').src=url;
     $('img-preview').style.display='block';
     $('img-info').textContent=`${srcW} × ${srcH}`;
@@ -1028,8 +1045,43 @@ function loadImageFile(file){
   img.src=url;
 }
 
+/* Video: sample each painted frame → pixelData → re-render the live SVG.
+   requestVideoFrameCallback only fires while playing, so pause stops the loop. */
+function loadVideoFile(file){
+  isVideo=true;
+  const url=URL.createObjectURL(file);
+  srcVideo.src=url;
+  srcVideo.onloadeddata=()=>{
+    srcW=srcVideo.videoWidth; srcH=srcVideo.videoHeight;
+    $('img-preview').style.display='none';
+    $('img-drop').style.display='none';
+    $('btn-playpause').style.display='';
+    fitViewport();
+    srcVideo.play();
+    pumpVideo();
+  };
+}
+
+function pumpVideo(){
+  if(!isVideo) return;
+  sampleInto(srcVideo);
+  scheduleRender();
+  if(srcVideo.requestVideoFrameCallback) srcVideo.requestVideoFrameCallback(pumpVideo);
+  else if(!srcVideo.paused) requestAnimationFrame(pumpVideo); // ponytail: rVFC fallback
+}
+
+function loadFile(file){
+  if(file.type.startsWith('video/')) loadVideoFile(file);
+  else if(file.type.startsWith('image/')) loadImageFile(file);
+}
+
+$('btn-playpause').addEventListener('click',()=>{
+  if(srcVideo.paused){ srcVideo.play(); pumpVideo(); $('btn-playpause').textContent='⏸ Pausa'; }
+  else { srcVideo.pause(); $('btn-playpause').textContent='▶ Play'; }
+});
+
 $('btn-upload').addEventListener('click',()=>fileInput.click());
-fileInput.addEventListener('change',e=>{ if(e.target.files[0]) loadImageFile(e.target.files[0]); });
+fileInput.addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
 
 const dropOvl=$('drop-overlay'); let dragCnt=0;
 document.addEventListener('dragenter',e=>{ e.preventDefault(); if(++dragCnt>0) dropOvl.classList.add('visible'); });
@@ -1038,7 +1090,7 @@ document.addEventListener('dragover', e=>e.preventDefault());
 document.addEventListener('drop',e=>{
   e.preventDefault(); dragCnt=0; dropOvl.classList.remove('visible');
   const f=e.dataTransfer.files[0];
-  if(f&&f.type.startsWith('image/')) loadImageFile(f);
+  if(f) loadFile(f);
 });
 
 /* ════════════════════════════════════════════════
@@ -1167,18 +1219,56 @@ $('btn-export-svg').addEventListener('click',()=>{
   a.click(); URL.revokeObjectURL(a.href); toast('SVG exportado');
 });
 
-$('btn-export-png').addEventListener('click',()=>{
+/* Rasterize current SVG to a 2D context. Returns a promise. Reused by PNG + WebM. */
+function rasterizeSVG(ctx,W,H){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(mainSvg)],{type:'image/svg+xml;charset=utf-8'}));
+    const img=new Image();
+    img.onload=()=>{ ctx.clearRect(0,0,W,H); ctx.drawImage(img,0,0,W,H); URL.revokeObjectURL(url); res(); };
+    img.onerror=e=>{ URL.revokeObjectURL(url); rej(e); };
+    img.src=url;
+  });
+}
+
+$('btn-export-png').addEventListener('click',async()=>{
   if(!pixelData){ toast('Primero hacer render'); return; }
   const sc=2,W=srcW*sc,H=srcH*sc;
   const oc=document.createElement('canvas'); oc.width=W; oc.height=H;
-  const oc2=oc.getContext('2d');
-  const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(mainSvg)],{type:'image/svg+xml;charset=utf-8'}));
-  const img=new Image();
-  img.onload=()=>{ oc2.drawImage(img,0,0,W,H);
-    const a=document.createElement('a'); a.download='criptidos-mosaic.png';
-    a.href=oc.toDataURL('image/png'); a.click();
-    URL.revokeObjectURL(url); toast('PNG exportado (2×)'); };
-  img.src=url;
+  await rasterizeSVG(oc.getContext('2d'),W,H);
+  const a=document.createElement('a'); a.download='criptidos-mosaic.png';
+  a.href=oc.toDataURL('image/png'); a.click(); toast('PNG exportado (2×)');
+});
+
+/* WebM export: play video once, rasterize each frame to a canvas, record the
+   canvas stream with MediaRecorder.
+   ponytail: realtime capture — heavy mosaics may drop frames; WebM only. */
+$('btn-export-webm').addEventListener('click',async()=>{
+  if(!isVideo){ toast('Cargá un video primero'); return; }
+  const oc=document.createElement('canvas'); oc.width=srcW; oc.height=srcH;
+  const ctx=oc.getContext('2d');
+  const stream=oc.captureStream(30);
+  const rec=new MediaRecorder(stream,{mimeType:'video/webm'});
+  const chunks=[]; rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  rec.onstop=()=>{
+    srcVideo.loop=true; srcVideo.play(); pumpVideo(); // restore live looping
+    const a=document.createElement('a'); a.download='criptidos-mosaic.webm';
+    a.href=URL.createObjectURL(new Blob(chunks,{type:'video/webm'}));
+    a.click(); URL.revokeObjectURL(a.href); toast('WebM exportado');
+  };
+  srcVideo.loop=false; srcVideo.pause(); srcVideo.currentTime=0;
+  await srcVideo.play();
+  rec.start();
+  toast('Grabando video…');
+  let recording=true;
+  const grab=async()=>{
+    if(!recording) return;
+    await rasterizeSVG(ctx,srcW,srcH);
+    if(srcVideo.ended){ recording=false; rec.stop(); return; }
+    if(srcVideo.requestVideoFrameCallback) srcVideo.requestVideoFrameCallback(grab);
+    else requestAnimationFrame(grab);
+  };
+  srcVideo.onended=()=>{ if(recording){ recording=false; rec.stop(); } };
+  grab();
 });
 
 /* ════════════════════════════════════════════════

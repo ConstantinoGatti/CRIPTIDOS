@@ -88,13 +88,19 @@
     #gate-label { font-size: clamp(10px,1.4vw,13px); color: rgba(243,243,243,0.4); letter-spacing: 0.12em; text-transform: uppercase; align-self: flex-start; margin-bottom: 1.2rem; }
     #gate-prompt-wrap { display: flex; align-items: center; gap: 0.5rem; align-self: flex-start; }
     #gate-prompt-label { font-size: clamp(11px,1.5vw,14px); color: var(--blanco); letter-spacing: 0.05em; }
-    #gate-input {
-      background: transparent; border: none; border-bottom: 1px solid var(--blanco);
-      outline: none; color: var(--blanco); font-family: 'JetBrains Mono', monospace;
-      font-size: clamp(11px,1.5vw,14px); letter-spacing: 0.3em;
-      width: 180px; padding: 2px 4px; caret-color: var(--azul);
+    #gate-field { position: relative; }
+    #gate-slots {
+      font-family: 'JetBrains Mono', monospace; font-size: clamp(11px,1.5vw,14px);
+      color: var(--blanco); letter-spacing: 0.12em; white-space: nowrap;
+      border-bottom: 1px solid var(--blanco); padding: 2px 4px; min-width: 240px;
     }
-    #gate-cursor { width: 9px; height: 14px; background: var(--blanco); animation: blink 1s step-end infinite; flex-shrink: 0; }
+    #gate-input {
+      position: absolute; inset: 0; width: 100%;
+      background: transparent; border: none; outline: none;
+      color: transparent; caret-color: transparent;
+      font-family: 'JetBrains Mono', monospace; font-size: clamp(11px,1.5vw,14px); padding: 2px 4px;
+    }
+    #gate-cursor { display: none; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     #gate-error { align-self: flex-start; font-size: clamp(10px,1.3vw,12px); color: var(--amarillo); margin-top: 1rem; letter-spacing: 0.05em; opacity: 0; transition: opacity 0.2s; }
     #gate-error.visible { opacity: 1; }
@@ -165,11 +171,6 @@
     .folder-icon.selected .icon-svg { filter: brightness(0.6) sepia(1) hue-rotate(180deg) saturate(3); }
     .folder-icon.selected .icon-label { background: var(--azul); color: var(--blanco); padding: 1px 4px; }
 
-    /* PAPELERA — bottom right */
-    #papelera-icon {
-      position: absolute;
-      right: 48px; bottom: 78px;
-    }
 
     /* ── OS WINDOWS ───────────────────────────────────────── */
     .os-window {
@@ -219,14 +220,26 @@
 
     /* window-specific sizes */
     #win-archivo { width: min(680px, 90vw); height: min(480px, 80vh); top: 60px; left: 140px; }
-    #win-print   { width: min(480px, 85vw); height: min(420px, 75vh); top: 80px; left: 200px; }
+    #win-print   { width: min(440px, 85vw); height: min(600px, 85vh); top: 50px; left: 200px; }
     #win-blocked { width: min(400px, 80vw); height: min(280px, 60vh); top: 100px; left: 160px; }
-    #win-orc { width: min(460px, 86vw); height: min(320px, 65vh); top: 90px; left: 220px; }
-    .orc-placeholder {
-      display: flex; align-items: center; justify-content: center;
-      height: 100%; font-size: 11px; letter-spacing: 0.16em;
-      color: rgba(243,243,243,0.25); text-transform: uppercase;
+    #win-real    { width: min(400px, 80vw); height: min(280px, 60vh); top: 120px; left: 210px; }
+    #win-mapa    { width: min(700px, 92vw); height: min(520px, 86vh); top: 50px; left: 150px; }
+    .map-body { padding: 0 !important; overflow: hidden; }
+    #map-viewport { width: 100%; height: 100%; overflow: hidden; position: relative; background: #000; cursor: grab; }
+    #map-viewport:active { cursor: grabbing; }
+    #map-pan { position: absolute; top: 0; left: 0; will-change: transform; }
+    .map-img { display: block; width: 2400px; user-select: none; -webkit-user-drag: none; }
+    /* hotspot transparente sobre el área amarilla de la imagen (el reactivo) */
+    .map-dot { position: absolute; width: 44px; height: 44px; transform: translate(-50%,-50%); cursor: pointer; }
+    .map-dot::after {
+      content: attr(data-coord); position: absolute; left: 50%; bottom: 120%;
+      transform: translateX(-50%); white-space: nowrap;
+      background: var(--negro); border: 1px solid var(--amarillo); color: var(--amarillo);
+      font: 10px 'JetBrains Mono', monospace; letter-spacing: 0.04em; padding: 4px 8px;
+      opacity: 0; pointer-events: none; transition: opacity 0.12s;
     }
+    .map-dot:hover::after { opacity: 1; }
+    .map-dot.copied::after { content: '✓ COORDENADAS COPIADAS'; opacity: 1; }
 
     /* ── PAPELERA: sopa de letras + plantilla ─────────────── */
     .recovered { position: absolute; display: none; padding: 18px; box-sizing: content-box; }
@@ -323,18 +336,17 @@
       margin-bottom: 14px;
     }
     .print-image-area {
-      width: 100%; aspect-ratio: 3/4; max-height: 260px;
+      width: 100%; aspect-ratio: 3/4; max-height: 440px;
       border: 1px solid rgba(243,243,243,0.12);
       background: rgba(68,84,164,0.06);
       display: flex; align-items: center; justify-content: center;
       margin-bottom: 16px; position: relative; overflow: hidden;
     }
-    .print-placeholder {
-      font-size: 9px; color: rgba(243,243,243,0.15);
-      letter-spacing: 0.1em; text-align: center; line-height: 2;
-    }
+    .print-img { max-width: 100%; max-height: 100%; display: block; }
+    .print-placeholder { font-size: 9px; color: rgba(243,243,243,0.2); letter-spacing: 0.12em; text-align: center; line-height: 2; padding: 20px; }
     .print-download-btn {
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none;
       background: transparent; border: 1px solid rgba(243,243,243,0.25);
       color: var(--blanco); font-family: 'JetBrains Mono', monospace;
       font-size: 10px; letter-spacing: 0.12em;
@@ -578,7 +590,10 @@
     <div id="gate-label">ACCESO RESTRINGIDO — INGRESE CREDENCIALES</div>
     <div id="gate-prompt-wrap">
       <span id="gate-prompt-label">CONTRASEÑA&nbsp;:&nbsp;</span>
-      <input type="password" id="gate-input" autocomplete="off" spellcheck="false" maxlength="8"/>
+      <div id="gate-field">
+        <div id="gate-slots">_ - _ - _ - _ - _ - _ - _ - _ - _ - _</div>
+        <input type="text" id="gate-input" autocomplete="off" spellcheck="false" maxlength="10"/>
+      </div>
       <div id="gate-cursor"></div>
     </div>
     <div id="gate-error">// ACCESO DENEGADO — CONTRASEÑA INCORRECTA</div>
@@ -643,16 +658,17 @@
         <div class="icon-label">ARCHIVO</div>
       </div>
 
-      <div class="folder-icon" data-target="win-print">
+      <div class="folder-icon" data-target="win-papelera">
         <div class="icon-svg">
           <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="80" width="60" height="100"/>
             <rect x="80" y="120" width="60" height="100"/>
-            <rect width="60" height="40"/>
             <rect x="160" y="60" width="60" height="160"/>
+            <rect y="60" width="60" height="160"/>
+            <rect x="160" width="60" height="40"/>
+            <rect x="79" width="60" height="40"/>
           </svg>
         </div>
-        <div class="icon-label">PRINT</div>
+        <div class="icon-label">PAPELERA</div>
       </div>
 
       <div class="folder-icon" data-target="win-blocked">
@@ -666,20 +682,6 @@
         </div>
         <div class="icon-label">BLOCKED</div>
       </div>
-    </div>
-
-    <!-- papelera (bottom-right) -->
-    <div class="folder-icon" id="papelera-icon" data-target="win-papelera">
-      <div class="icon-svg">
-        <svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="80" y="120" width="60" height="100"/>
-          <rect x="160" y="60" width="60" height="160"/>
-          <rect y="60" width="60" height="160"/>
-          <rect x="160" width="60" height="40"/>
-          <rect x="79" width="60" height="40"/>
-        </svg>
-      </div>
-      <div class="icon-label">PAPELERA</div>
     </div>
 
     <!-- statusbar -->
@@ -754,16 +756,15 @@
         <div class="win-spacer"></div>
       </div>
       <div class="win-body">
-        <div class="print-meta">ARCHIVO IMPRIMIBLE — IMAGEN POR CONFIRMAR</div>
+        <div class="print-meta">ARCHIVO IMPRIMIBLE — "TODO ES PERSPECTIVA"</div>
         <div class="print-image-area" id="print-image-area">
-          <div class="print-placeholder">
-            IMAGEN<br>POR CONFIRMAR<br>—<br>[ PENDIENTE ]
-          </div>
+          <img src="assets/print.png" alt="PRINT" class="print-img"
+               onerror="var p=this.parentNode; this.remove(); p.innerHTML='&lt;div class=&quot;print-placeholder&quot;&gt;// IMAGEN PENDIENTE — assets/print.png&lt;/div&gt;'"/>
         </div>
-        <button class="print-download-btn" id="print-dl-btn" onclick="downloadPrint()">
+        <a class="print-download-btn" href="assets/print.png" download="criptidos-print.png" onclick="downloadPrint(event)">
           <span class="dl-arrow">↓</span>
           DESCARGAR ARCHIVO
-        </button>
+        </a>
       </div>
       <div class="win-resize"></div>
     </div>
@@ -816,15 +817,42 @@
     <div id="soup" class="recovered"></div>
     <div id="stencil" class="recovered"></div>
 
-    <!-- ── WINDOW: ORC (desbloqueada por contraseña) ────── -->
-    <div class="os-window" id="win-orc">
+    <!-- ── WINDOW: BLOCKED nivel 3 (pass REAL) ──────────── -->
+    <div class="os-window" id="win-real">
       <div class="win-titlebar">
-        <button class="win-close-btn" data-close="win-orc">×</button>
-        <span class="win-title">ORC</span>
+        <button class="win-close-btn" data-close="win-real">×</button>
+        <span class="win-title">BLOCKED</span>
         <div class="win-spacer"></div>
       </div>
       <div class="win-body">
-        <div class="orc-placeholder">// MÓDULO ORC — EN CONSTRUCCIÓN</div>
+        <div class="blocked-wrap">
+          <div class="blocked-label">ACCESO NIVEL 3 — MÓDULO RESTRINGIDO</div>
+          <div class="blocked-prompt-wrap">
+            <span class="blocked-prompt-label">CÓDIGO&nbsp;:&nbsp;</span>
+            <input type="password" class="blocked-input" id="real-input" autocomplete="off" maxlength="16"/>
+            <div class="blocked-cursor"></div>
+          </div>
+          <div class="blocked-error" id="real-error">// CÓDIGO INCORRECTO</div>
+          <div class="blocked-hint">[ PRESIONE ENTER PARA CONFIRMAR ]</div>
+          <div class="blocked-success" id="real-success">// ACCESO CONCEDIDO — NIVEL 3</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WINDOW: MAPA (geonavegador) ──────────────────── -->
+    <div class="os-window" id="win-mapa">
+      <div class="win-titlebar">
+        <button class="win-close-btn" data-close="win-mapa">×</button>
+        <span class="win-title">GEO — NAVEGADOR</span>
+        <div class="win-spacer"></div>
+      </div>
+      <div class="win-body map-body">
+        <div id="map-viewport">
+          <div id="map-pan">
+            <img src="assets/mapa.png" class="map-img" draggable="false" alt="MAPA"/>
+            <div class="map-dot" style="left:49%; top:41%;" data-coord="-34.59699536618521  -58.376836671295706"></div>
+          </div>
+        </div>
       </div>
       <div class="win-resize"></div>
     </div>
@@ -836,8 +864,9 @@
 <div id="crt-glass"></div>
 
 <script>
-  const PASSWORD         = 'P1N8K82S';
+  const PASSWORD         = 'ALTERACION';
   const BLOCKED_PASSWORD = 'ORC';
+  const REAL_PASSWORD    = 'REAL';   // comparada en mayúsculas (case-insensitive)
 
   /* ── AUDIO ENGINE ─────────────────────────────────────── */
   let audioCtx = null;
@@ -1020,19 +1049,30 @@
     setTimeout(() => document.getElementById('gate-input').focus(), 100);
   }
 
-  document.getElementById('gate-input').addEventListener('keydown', e => {
-    if (e.key !== 'Enter') { sndKeyClick(); return; }
-    const val = document.getElementById('gate-input').value;
-    if (val === PASSWORD) {
+  const gateInput = document.getElementById('gate-input');
+  function renderGateSlots() {
+    const v = gateInput.value;
+    document.getElementById('gate-slots').textContent =
+      Array.from({ length: 10 }, (_, i) => v[i] || '_').join(' - ');
+  }
+  gateInput.addEventListener('input', () => {
+    gateInput.value = gateInput.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10);
+    renderGateSlots();
+    sndKeyClick();
+  });
+  gateInput.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (gateInput.value === PASSWORD) {
       document.getElementById('gate-error').classList.remove('visible');
       sndSuccess();
       enterDesktop();
     } else {
-      document.getElementById('gate-input').value = '';
+      gateInput.value = '';
+      renderGateSlots();
       document.getElementById('gate-error').classList.add('visible');
-      document.getElementById('gate-input').classList.add('shake');
+      gateInput.classList.add('shake');
       sndError();
-      setTimeout(() => document.getElementById('gate-input').classList.remove('shake'), 400);
+      setTimeout(() => gateInput.classList.remove('shake'), 400);
     }
   });
 
@@ -1065,30 +1105,43 @@
   /* ── FOLDER ICONS — open windows ─────────────────────── */
   let zTop = 200;
 
-  document.querySelectorAll('.folder-icon').forEach(icon => {
-    icon.addEventListener('click', () => {
-      const winId = icon.dataset.target;
-      document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
-      icon.classList.add('selected');
+  function openFolder(icon) {
+    const winId = icon.dataset.target;
+    document.querySelectorAll('.folder-icon').forEach(i => i.classList.remove('selected'));
+    icon.classList.add('selected');
 
-      if (winId === 'win-papelera') { revealPapelera(); return; }
+    if (winId === 'win-papelera') { revealPapelera(); return; }
 
-      const win = document.getElementById(winId);
-      if (!win) return;
+    const win = document.getElementById(winId);
+    if (!win) return;
 
-      if (win.classList.contains('open')) {
-        bringToFront(win);
-        sndKeyClick();
-      } else {
-        win.classList.add('open');
-        bringToFront(win);
-        sndWinOpen();
-        if (winId === 'win-blocked') {
-          setTimeout(() => document.getElementById('blocked-input').focus(), 80);
-        }
-      }
-    });
-  });
+    if (win.classList.contains('open')) {
+      bringToFront(win);
+      sndKeyClick();
+    } else {
+      win.classList.add('open');
+      bringToFront(win);
+      sndWinOpen();
+      if (winId === 'win-blocked') setTimeout(() => document.getElementById('blocked-input').focus(), 80);
+      if (winId === 'win-real')    setTimeout(() => document.getElementById('real-input').focus(), 80);
+    }
+  }
+  document.querySelectorAll('.folder-icon').forEach(icon => icon.addEventListener('click', () => openFolder(icon)));
+
+  /* nuevo ícono BLOCKED (pass REAL → NIVEL 3) — aparece al completar ORC */
+  function spawnRealIcon() {
+    if (document.querySelector('.folder-icon[data-target="win-real"]')) return;  // una sola vez
+    const icon = document.createElement('div');
+    icon.className = 'folder-icon';
+    icon.dataset.target = 'win-real';
+    icon.innerHTML =
+      '<div class="icon-svg"><svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="80" width="60" height="100"/><rect x="80" y="120" width="60" height="100"/>' +
+      '<rect width="60" height="40"/><rect x="160" y="60" width="60" height="160"/>' +
+      '</svg></div><div class="icon-label">BLOCKED</div>';
+    icon.addEventListener('click', () => openFolder(icon));
+    document.getElementById('desktop-icons').appendChild(icon);
+  }
 
   function bringToFront(win) {
     zTop++;
@@ -1160,7 +1213,7 @@
   /* ── BLOCKED PASSWORD ─────────────────────────────────── */
   document.getElementById('blocked-input').addEventListener('keydown', e => {
     if (e.key !== 'Enter') { sndKeyClick(); return; }
-    const val = document.getElementById('blocked-input').value;
+    const val = document.getElementById('blocked-input').value.trim().toUpperCase();
     const err = document.getElementById('blocked-error');
     const ok  = document.getElementById('blocked-success');
     if (val === BLOCKED_PASSWORD) {
@@ -1172,9 +1225,13 @@
       updateLocks();
       document.getElementById('statusbar-right').innerHTML =
         'SESIÓN ACTIVA — <span style="color:var(--amarillo)">NIVEL 2</span>';
+      /* BLOCKED se convierte en PRINT; aparece un nuevo BLOCKED (pass REAL) */
+      const blk = document.querySelector('.folder-icon[data-target="win-blocked"]');
+      if (blk) { blk.dataset.target = 'win-print'; blk.querySelector('.icon-label').textContent = 'PRINT'; }
+      spawnRealIcon();
       setTimeout(() => {
         document.getElementById('win-blocked').classList.remove('open');
-        const w = document.getElementById('win-orc');
+        const w = document.getElementById('win-print');
         w.classList.add('open');
         bringToFront(w);
         sndWinOpen();
@@ -1188,11 +1245,47 @@
     }
   });
 
-  /* ── PRINT DOWNLOAD ───────────────────────────────────── */
-  function downloadPrint() {
-    // placeholder — replace with actual file URL when image is ready
-    alert('[ ARCHIVO DE IMPRESIÓN PENDIENTE ]');
+  /* descarga forzada (el atributo download se ignora en file://) */
+  const PRINT_B64 = 'iVBORw0KGgoAAAANSUhEUgAAA0oAAASmCAYAAAAQ+1uaAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAJFpJREFUeAHt3TGPbGedoPFzR3cn8VhAhOwEWJJNZrEFlnYjY2mj3cWYcOUACNiZDPgCYzxfAJPNLIFNYG0IjLQbrWSIdiSDDDPJZIbEFhFIMyST3Om3pffq+PGp6qruLrtv3d9PKriu/nf1W9Wnq89Tdar63oMLCwAAAA/9yQIAAMAHCCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQS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IZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQSgAAACGUAAAAQigBAACEUAIAAAihBAAAEEIJAAAghBIAAEAIJQAAgBBKAAAAIZQAAABCKAEAAIRQAgAACKEEAAAQQgkAACCEEgAAQAglAACAEEoAAAAhlAAAAEIoAQAAhFACAAAIoQQAABBCCQAAIIQSAABACCUAAIAQ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';
+  function downloadPrint(e) {
+    e.preventDefault();
+    const bin = atob(PRINT_B64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const u = URL.createObjectURL(new Blob([arr], { type: 'image/png' }));
+    const a = document.createElement('a');
+    a.href = u; a.download = 'criptidos-print.png';
+    a.click();
+    URL.revokeObjectURL(u);
   }
+
+  /* ── PASS REAL (NIVEL 3) ──────────────────────────────── */
+  const realInput = document.getElementById('real-input');
+  realInput.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') { sndKeyClick(); return; }
+    const err = document.getElementById('real-error');
+    if (realInput.value.trim().toUpperCase() === REAL_PASSWORD) {
+      err.classList.remove('visible');
+      document.getElementById('real-success').classList.add('visible');
+      realInput.disabled = true;
+      sndSuccess();
+      accessLevel = 3;
+      updateLocks();
+      document.getElementById('statusbar-right').innerHTML =
+        'SESIÓN ACTIVA — <span style="color:var(--amarillo)">NIVEL 3</span>';
+      setTimeout(() => {
+        document.getElementById('win-real').classList.remove('open');
+        const w = document.getElementById('win-mapa');
+        w.classList.add('open'); bringToFront(w); sndWinOpen();
+      }, 1000);
+    } else {
+      realInput.value = '';
+      err.classList.add('visible');
+      realInput.classList.add('shake');
+      sndError();
+      setTimeout(() => realInput.classList.remove('shake'), 400);
+    }
+  });
 
   /* click desktop to deselect icons */
   document.getElementById('desktop-canvas').addEventListener('click', e => {
@@ -1642,6 +1735,38 @@
     stencilEl.classList.add('shown');
     sndWinOpen();
   }
+
+  /* ── MAPA — pan (fingir navegación) ───────────────────── */
+  (function () {
+    const pan = document.getElementById('map-pan');
+    const vp = document.getElementById('map-viewport');
+    let active = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    vp.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('map-dot')) return;
+      active = true; sx = e.clientX - ox; sy = e.clientY - oy; e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!active) return;
+      ox = e.clientX - sx; oy = e.clientY - sy;
+      const minX = Math.min(0, vp.clientWidth - pan.offsetWidth);
+      const minY = Math.min(0, vp.clientHeight - pan.offsetHeight);
+      ox = Math.max(minX, Math.min(0, ox));
+      oy = Math.max(minY, Math.min(0, oy));
+      pan.style.transform = 'translate(' + ox + 'px,' + oy + 'px)';
+    });
+    document.addEventListener('mouseup', () => { active = false; });
+
+    /* click en el punto → copia las coordenadas */
+    document.querySelectorAll('.map-dot').forEach(dot => {
+      dot.addEventListener('click', () => {
+        const txt = dot.dataset.coord;
+        const fallback = () => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); };
+        if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(fallback); else fallback();
+        dot.classList.add('copied'); sndKeyClick();
+        setTimeout(() => dot.classList.remove('copied'), 1200);
+      });
+    });
+  })();
 </script>
 
 <style>
